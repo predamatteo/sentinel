@@ -21,6 +21,8 @@ dependencies:
   firebase_core: ^3.6.0
   firebase_app_check: ^0.3.1+5
   firebase_remote_config: ^5.1.4
+  firebase_crashlytics: ^4.1.4
+  firebase_performance: ^0.10.0+9
 
   # Local persistence for user whitelist and lightweight settings.
   shared_preferences: ^2.3.2
