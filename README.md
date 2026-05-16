@@ -1,348 +1,353 @@
 # Sentinel
 
+> App Android open-source che protegge da link malevoli e pubblicità invasive,
+> senza decifrare il traffico HTTPS e senza inviare nulla all'esterno.
+
+**Piattaforma:** Android 7.0+ (API 24) · **Stack:** Flutter + Kotlin · **Distribuzione:** sideload (no Play Store)
+
 ---
 
-## Italiano
+## Indice
 
-**Sentinel** è una app Android che ti protegge dai link pericolosi e dalle
-pubblicità invasive. Quando tocchi un link in WhatsApp, SMS, Gmail,
-Telegram o in qualsiasi altra app, Sentinel lo analizza prima di aprirlo.
-Se è sicuro, lo apri come al solito in Chrome. Se è sospetto, ti avvisa e
-ti permette di tornare indietro.
+- [Cosa fa](#cosa-fa)
+- [Cosa NON fa](#cosa-non-fa)
+- [Architettura a 3 livelli](#architettura-a-3-livelli)
+- [Privacy](#privacy)
+- [Setup di sviluppo](#setup-di-sviluppo)
+- [Build & sideload](#build--sideload)
+- [Configurazione Firebase](#configurazione-firebase)
+- [Configurazione Safe Browsing](#configurazione-safe-browsing)
+- [Test](#test)
+- [Struttura del progetto](#struttura-del-progetto)
+- [Limitazioni note](#limitazioni-note)
+- [Contribuire](#contribuire)
+- [Licenza](#licenza)
 
-Con lo **Sprint 2** Sentinel può anche attivare un filtro DNS che blocca
-pubblicità e domini sospetti per **tutte** le app del telefono — senza
-decifrare il traffico HTTPS e senza inviare nulla all'esterno.
+---
 
-Con lo **Sprint 3** Sentinel può inoltre controllare i siti che digiti
-direttamente nella barra degli indirizzi dei browser supportati
-(Chrome, Firefox, Edge, Brave, Samsung Internet, Opera, DuckDuckGo,
-Ecosia, Vivaldi, Kiwi). È la cosiddetta **Sentinella nei browser**, una
-protezione opzionale basata sul servizio di accessibilità di Android.
+## Cosa fa
 
-### Cosa fa, in breve
+Quando tocchi un link in WhatsApp, SMS, Gmail, Telegram o in qualsiasi altra app,
+Sentinel lo analizza prima che venga aperto:
+
 1. Imposti Sentinel come browser predefinito.
-2. Quando tocchi un link, Android lo passa a Sentinel.
-3. Sentinel controlla il link con Google Safe Browsing e con una lista
-   locale di siti già noti.
-4. Se il link è sicuro, lo apre in Chrome (tramite Chrome Custom Tabs).
-5. Se è sospetto o pericoloso, vedi una schermata rossa con i motivi e
-   puoi decidere se tornare indietro o procedere comunque.
-6. Opzionalmente puoi attivare il **filtro DNS Sentinel**: una piccola
-   VPN locale che blocca i domini pubblicitari e malevoli per ogni app.
+2. Android gli consegna l'intent del link.
+3. Sentinel controlla il link con **Google Safe Browsing** + **blacklist locale**.
+4. **Verdetto verde** → apre il link in Chrome (via Chrome Custom Tabs).
+5. **Verdetto rosso/arancio** → mostra una schermata di avviso con i motivi e
+   ti permette di tornare indietro o procedere consapevolmente.
 
-### Cosa NON fa
-- Non è un browser. Non ha cronologia, schede, segnalibri. Non visualizza
-  i siti: si limita ad analizzare il link e a passarlo a Chrome.
-- Non legge il contenuto delle pagine HTTPS (nessun MITM).
-- Non invia il tuo traffico all'esterno: la VPN è interamente locale.
+In più, opzionalmente:
+
+- **Filtro DNS locale**: una mini-VPN on-device che blocca pubblicità e domini
+  malevoli per **tutte** le app del telefono.
+- **Sentinella nei browser**: legge l'URL nella barra degli indirizzi dei
+  browser supportati e applica lo stesso filtro anche quando digiti
+  direttamente (no intent dispatch).
+
+## Cosa NON fa
+
+- Non è un browser: niente cronologia, tab, segnalibri, rendering.
+- Non fa MITM: non vede il contenuto delle pagine HTTPS.
+- Non manda traffico all'esterno: la VPN è 100% locale.
 - Non richiede root.
-- Non è disponibile sul Play Store: si installa via sideload.
-
-### Sentinella nei browser (Sprint 3)
-
-La Sentinella nei browser è la terza linea di difesa. Quando è attiva,
-Sentinel osserva **solo** l'URL nella barra degli indirizzi dei browser
-supportati e lo analizza con la stessa pipeline usata per i link toccati
-nelle altre app. Se il sito è pericoloso, sopra il browser appare un
-avviso a tutto schermo con la possibilità di tornare indietro o
-procedere comunque.
-
-**Cosa vede Sentinel quando la Sentinella è attiva**
-- L'URL scritto nella barra degli indirizzi di: Chrome, Firefox, Edge,
-  Brave, Samsung Internet, Opera, DuckDuckGo, Ecosia, Vivaldi e Kiwi
-  Browser.
-
-**Cosa NON vede mai Sentinel — anche con la Sentinella attiva**
-- Il contenuto delle pagine web (testo, immagini, password digitate).
-- Messaggi, email, SMS, notifiche o testo di qualsiasi altra app.
-- L'URL di qualsiasi browser che non sia nella lista qui sopra.
-
-**Come attivarla**
-1. Apri Sentinel.
-2. Vai in **Impostazioni → Protezione avanzata**.
-3. Tocca **Sentinella nei browser**: si apre l'elenco di accessibilità
-   di Android. Trova "Sentinel" e attivalo.
-4. Torna in Sentinel e concedi il **Permesso di sovrapposizione**
-   (serve per mostrare l'avviso sopra il browser).
-5. Torna in Sentinel: nella dashboard non comparirà più l'avviso
-   "Protezione avanzata non attiva".
-
-L'app funziona perfettamente anche senza la Sentinella (basta L1 + L2).
-È una protezione opzionale, attivabile e disattivabile in qualsiasi
-momento.
+- Non è sul Play Store: si installa via sideload (vedi sotto).
 
 ---
 
-## English (developer setup)
+## Architettura a 3 livelli
 
-Sentinel is a Flutter + Kotlin Android app that gates outbound `http(s)`
-links through an analysis pipeline (Layer 1) and runs an optional local
-DNS-filtering VPN (Layer 2). HTTPS payloads are never decrypted.
+| Livello | Meccanismo | Cosa copre | Stato |
+|---------|------------|------------|-------|
+| **L1** | Default-browser intent gating | URL toccati dall'utente in altre app | Done (Sprint 1) |
+| **L2** | `VpnService` con filtro DNS | Tutte le query DNS in uscita (ads/tracker/sub-resource) | Done (Sprint 2) |
+| **L3** | `AccessibilityService` sulla URL bar | URL digitati direttamente nei browser supportati | Done (Sprint 3) |
 
-### Architecture
-Three-layer strategy. **Sprint 1 implemented Layer 1; Sprint 2 implements
-Layer 2.**
+I livelli si compongono: L1 da solo è già utile; L1+L2 copre anche il
+sotto-traffico; L1+L2+L3 copre anche la digitazione manuale.
 
-| Layer | Mechanism | Status |
-|-------|-----------|--------|
-| L1    | Default-browser intent gating | Done (Sprint 1) |
-| L2    | `VpnService` DNS filtering    | Done (Sprint 2) |
-| L3    | `AccessibilityService` URL bar | Done (Sprint 3) |
+Diagrammi di sequenza completi in [`docs/architecture.md`](docs/architecture.md).
 
-See `docs/architecture.md` for the full diagram, the Layer 2 sequence
-diagrams, and design notes.
+### Browser supportati dalla Sentinella (L3)
 
-### Prerequisites
-- Flutter `>= 3.41` (tested on 3.41.4)
-- Dart `>= 3.11`
-- Android SDK: `compileSdk 36`, `targetSdk 34`, `minSdk 24`
-- JDK 17 for builds; JDK 21+ on the host is fine because Gradle 8.14
-  auto-toolchains
-- Android Gradle Plugin `8.11`, Kotlin `2.2`
-- A physical device or emulator running **Android 7.0 (API 24)** or newer
-- Firebase project (already configured for this checkout: project id
-  `sentinel-4052a`)
+Chrome · Firefox · Edge · Brave · Samsung Internet · Opera · DuckDuckGo ·
+Ecosia · Vivaldi · Kiwi Browser
 
-### Configure the Safe Browsing API key (optional)
-The Safe Browsing provider is optional. Without a key it returns a
-`SUSPICIOUS` outcome with the reason `Safe Browsing API non configurata`,
-so the rest of the pipeline still works (the local blacklist still runs).
+L'elenco è una **allow-list di sistema** dichiarata in
+`res/xml/accessibility_service_config.xml` — qualsiasi altra app non viene
+mai osservata, neppure con il servizio attivo.
 
-To enable it:
-1. Create a project on the Google Cloud Console.
-2. Enable the **Safe Browsing API** (v4 lookup) on that project.
-3. Generate an API key.
-4. Add the following line to `android/local.properties` (do not commit):
+---
+
+## Privacy
+
+Garanzie forzate dal codice, non solo dalla policy:
+
+- **`packageNames=` nel config XML**: filtro a livello sistema, non Sentinel.
+  Solo i 10 browser elencati possono inviare eventi al servizio di
+  accessibilità.
+- **Double-check Kotlin**: la prima riga di `onAccessibilityEvent` rifiuta
+  qualsiasi pacchetto non in `watchedBrowsers`. Defense in depth.
+- **Solo URL, mai contenuto pagina**: il servizio chiama esclusivamente
+  `findAccessibilityNodeInfosByViewId("url_bar")`, non scorre l'albero nodi
+  per raccogliere testo.
+- **Log troncati**: gli URL sono loggati solo in `BuildConfig.DEBUG` e
+  troncati a 32 caratteri.
+- **VPN locale**: nessun upstream Sentinel. Il forwarding va direttamente
+  ai DNS pubblici (Cloudflare 1.1.1.1 per default).
+- **Nessun MITM HTTPS**: il payload TCP non viene mai parsato.
+
+---
+
+## Setup di sviluppo
+
+### Prerequisiti
+
+- **Flutter** ≥ 3.41 (testato su 3.41.4)
+- **Dart** ≥ 3.11
+- **Android SDK**: `compileSdk 36`, `targetSdk 34`, `minSdk 24`
+- **JDK 17** per la build (JDK 21+ va bene sull'host, Gradle 8.14 fa toolchain auto)
+- **Android Gradle Plugin** 8.11, **Kotlin** 2.2
+- Un device fisico o emulatore con **Android 7.0 (API 24)+**
+
+### Clone e primo setup
+
+```bash
+git clone https://github.com/<your-user>/sentinel.git
+cd sentinel
+flutter pub get
+flutter gen-l10n
+```
+
+### File da creare dopo il clone
+
+Quattro file **non sono nel repo** per ragioni di sicurezza. Esistono come
+template, vanno copiati e compilati con i propri valori:
+
+| Template | Copia in | Contiene |
+|----------|----------|----------|
+| `android/local.properties.example` | `android/local.properties` | path SDK + `SAFE_BROWSING_API_KEY` |
+| `android/app/google-services.json.example` | `android/app/google-services.json` | identificatori app Firebase |
+| `lib/firebase_options.dart.example` | `lib/firebase_options.dart` | identificatori Firebase per Flutter |
+| `android/key.properties.template` | `android/key.properties` (solo se firmi release) | credenziali keystore release |
+
+Per Firebase, il modo più veloce è **rigenerare i file con FlutterFire CLI**
+invece di copiarli a mano — vedi sezione [Configurazione Firebase](#configurazione-firebase).
+
+---
+
+## Build & sideload
+
+```bash
+# Build debug
+flutter build apk --debug
+
+# Sideload sul device
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+
+# Build release (debug-signed se key.properties non esiste, vedi sotto)
+flutter build apk --release
+```
+
+### Firma release
+
+Se `android/key.properties` esiste, la release viene firmata col keystore
+indicato. Altrimenti fallback a debug-signing per non bloccare i contributori.
+
+```bash
+# Genera un keystore (tieni fuori dal repo)
+keytool -genkey -v \
+  -keystore sentinel-release.jks \
+  -keyalg RSA -keysize 2048 \
+  -validity 10000 \
+  -alias sentinel
+```
+
+Poi copia `android/key.properties.template` in `android/key.properties` e
+compila i quattro campi.
+
+Dopo la prima release: registra il nuovo SHA-1 in:
+- **Firebase Console** → Project Settings → Add fingerprint (per App Check)
+- **Google Cloud Console** → Credentials → Safe Browsing key → Android apps
+
+---
+
+## Configurazione Firebase
+
+> **Nota di sicurezza**: gli identificatori Firebase per app mobile
+> (`google-services.json`, `firebase_options.dart`, l'API key Android) **non
+> sono segreti** secondo Google ([docs ufficiali](https://firebase.google.com/docs/projects/learn-more#config-files-objects)).
+> Sono identificatori client estraibili da qualsiasi APK. Qui li teniamo
+> fuori dal repo per pulizia, ma la **vera protezione** del backend va fatta
+> con Security Rules + App Check + restrizioni API key.
+
+### Setup veloce con FlutterFire CLI
+
+```bash
+# 1. Installa la CLI (una volta)
+dart pub global activate flutterfire_cli
+
+# 2. Login Firebase
+firebase login
+
+# 3. Crea un progetto su https://console.firebase.google.com/
+#    (o riusane uno esistente)
+
+# 4. Configura Sentinel sul progetto — genera google-services.json
+#    e lib/firebase_options.dart automaticamente
+flutterfire configure --project=<your-project-id>
+```
+
+### App Check (consigliato)
+
+In **Firebase Console → App Check → Apps**:
+- Registra Sentinel Android con **Play Integrity** provider.
+- In debug build, cerca in `adb logcat` la riga:
+  `D FirebaseAppCheck: Enter this debug secret into the allow list: ABCDEF12-...`
+  e registra il token in **Manage debug tokens**. Senza questo, Remote
+  Config non funziona in debug.
+
+### Security Rules
+
+Se usi Firestore/Storage/Realtime DB: **scrivi le regole** prima di
+pubblicare. Le regole di default in "test mode" sono completamente aperte.
+
+---
+
+## Configurazione Safe Browsing
+
+L'integrazione Safe Browsing è **opzionale**. Senza chiave, il provider
+ritorna `SUSPICIOUS` con motivo "Safe Browsing API non configurata" e il
+resto della pipeline (blacklist locale) continua a funzionare.
+
+Per abilitarla:
+
+1. Su [Google Cloud Console](https://console.cloud.google.com/), abilita
+   la **Safe Browsing API v4**.
+2. Crea una API key.
+3. Aggiungi a `android/local.properties`:
    ```properties
    SAFE_BROWSING_API_KEY=your_actual_key_here
    ```
-5. Rebuild.
+4. Rebuild.
+5. **IMPORTANTE**: restringi subito la key in Cloud Console:
+   - **Application restrictions** → **Android apps**
+   - Package: `com.sentinel.app`
+   - SHA-1: quella del tuo keystore (debug per dev, release per produzione)
+   - **API restrictions** → solo Safe Browsing API
 
-After Sprint 2 the request also sends `X-Android-Package` and
-`X-Android-Cert` (SHA-1 of the signing certificate). Once everything
-works locally, switch the key restriction in Google Cloud Console to
-**Android apps** and add the app's package + signing SHA-1 there so the
-key becomes useless to anyone who extracts it from the APK.
+Senza queste restrizioni, chiunque scompatti l'APK può usare la tua chiave
+e farti consumare quota.
 
-### Firebase + App Check (Sprint 2)
-`google-services.json` is already committed under `android/app/`. The
-Firebase Console project is `sentinel-4052a` (App Check is registered
-with Play Integrity).
+---
 
-**Debug builds use the App Check debug provider** so developers can
-exercise Remote Config without Play Integrity attestations. The first
-time you run a debug build, look in logcat for a line like:
+## Test
 
-```
-D FirebaseAppCheck: Enter this debug secret into the allow list in
-   the Firebase Console for your project: ABCDEF12-3456-...
-```
-
-Copy that token and register it in Firebase Console:
-**App Check → Apps → Sentinel (Android) → Manage debug tokens → Add**.
-After the token is registered, Remote Config fetches succeed in debug.
-
-### Sprint 2 — enabling DNS protection at runtime
-1. Build and install: `flutter build apk --debug` then
-   `adb install -r build/app/outputs/flutter-apk/app-debug.apk`.
-2. Launch Sentinel from the home screen.
-3. Tap **Attiva protezione** on the dashboard.
-4. Android shows a system "Connection request" dialog explaining that
-   Sentinel wants to set up a VPN — accept it.
-5. A persistent notification appears: "Sentinel — Protezione attiva ·
-   N domini bloccati oggi". The status card on the dashboard turns
-   green and the stats start ticking.
-
-To disable: tap **Disattiva** on the dashboard, or pull down the
-notification shade and tap the VPN system entry → Disconnect.
-
-### Sprint 2 — refreshing blocklists
-The bundled `ads.txt` and `malware.txt` ship inside the APK. URLs to
-extended remote lists are read from Firebase Remote Config keys:
-
-- `blocklist_url_ads`
-- `blocklist_url_phishing`
-
-A "Aggiorna liste ora" button in **Impostazioni** forces a fresh fetch
-of Remote Config and downloads the URLs into the app's private cache.
-Subsequent VPN start-ups load the cached lists automatically.
-
-### Sprint 2 — switching the Safe Browsing key restriction
-Once you have a working `SAFE_BROWSING_API_KEY` and a successful build:
-
-1. Open Google Cloud Console → APIs & Services → Credentials.
-2. Open the API key used by Sentinel.
-3. Under **Application restrictions** pick **Android apps**.
-4. Add the package name `com.sentinel.app` and the signing SHA-1.
-   In Sprint 2 the build is debug-signed, so use the SHA-1 of the
-   debug keystore:
-   `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`
-5. Save. Sentinel already sends `X-Android-Package` and
-   `X-Android-Cert`, so requests continue to work.
-
-### Build
 ```bash
-flutter pub get
-flutter gen-l10n
-flutter build apk --debug      # debug-signed APK at build/app/outputs/flutter-apk/
-flutter build apk --release    # release build (debug-signed unless key.properties is present)
-```
-
-### Sideload to a device
-```bash
-adb install -r build/app/outputs/flutter-apk/app-debug.apk
-```
-
-### Release signing (Sprint Quality)
-The release build automatically picks up a real keystore when
-`android/key.properties` exists. Without it, `flutter build apk --release`
-falls back to debug signing so contributors without the keystore can
-still produce sideloadable APKs.
-
-1. Generate a keystore once (keep it outside the repository):
-   ```bash
-   keytool -genkey -v \
-     -keystore sentinel-release.jks \
-     -keyalg RSA -keysize 2048 \
-     -validity 10000 \
-     -alias sentinel
-   ```
-2. Copy `android/key.properties.template` to `android/key.properties`
-   (already gitignored) and fill the four fields.
-3. Build:
-   ```bash
-   flutter build apk --release
-   ```
-4. After the first release build, register the new release SHA-1 in:
-   - **Firebase Console → Project Settings → Your apps → Add fingerprint**
-     (so App Check Play Integrity attestations work for release builds).
-   - **Google Cloud Console → Credentials → Safe Browsing API key →
-     Application restrictions → Android apps** (so the same Safe Browsing
-     key keeps working in release).
-
-### Project layout (Sprint 2 additions in **bold**)
-```
-android/app/src/main/kotlin/com/sentinel/app/
-  LinkGateActivity.kt              # Single Activity, wires all channels
-  analysis/                        # Sprint 1 link-analysis engine
-  bridge/
-    AnalysisChannel.kt
-    ChromeLauncher.kt
-    DefaultBrowserHelper.kt
-    VpnChannel.kt
-    AccessibilityChannel.kt        # Sprint 3: com.sentinel.app/accessibility
-  vpn/                             # Layer 2 implementation
-    SentinelVpnService.kt
-    VpnController.kt
-    BlocklistRepository.kt
-    DnsPacketParser.kt
-    IpPacketParser.kt
-    UpstreamDnsConfig.kt
-    VpnStats.kt
-  accessibility/                   # Sprint 3: Layer 3 implementation
-    SentinelAccessibilityService.kt
-    AccessibilityHelper.kt
-    OverlayManager.kt
-    UrlSubmissionGate.kt
-
-android/app/src/main/res/xml/
-  accessibility_service_config.xml # Sprint 3: system-side allow list
-
-android/app/src/main/assets/
-  blacklist/sample.txt             # Sprint 1 host blacklist
-  blocklist/ads.txt                # NEW: bundled ad/tracker baseline
-  blocklist/malware.txt            # NEW: bundled malware/phishing baseline
-
-android/app/src/test/kotlin/com/sentinel/app/vpn/
-  DnsPacketParserTest.kt           # NEW: parses + synthesises DNS bytes
-  BlocklistMatchTest.kt            # NEW: parent-label match + whitelist
-
-lib/
-  main.dart                        # NOW initialises Firebase + App Check
-  app/app.dart                     # Updated router (Dashboard landing)
-  app/theme.dart                   # + SentinelStatusColor helpers
-  features/analysis/               # Sprint 1
-  features/dashboard/              # NEW: dashboard_screen.dart
-  features/settings/               # NEW: settings_screen.dart
-  features/onboarding/             # + extra DNS page
-  services/
-    analysis_service.dart          # Sprint 1
-    analysis_models.dart           # Sprint 1
-    vpn_service.dart               # NEW: MethodChannel wrapper for VPN
-    whitelist_service.dart         # NEW: SharedPreferences-backed list
-    remote_config_service.dart     # NEW: Firebase Remote Config
-  l10n/                            # ARB sources (Sprint 2 strings added)
-
-docs/
-  architecture.md                  # Updated for Layer 2
-  sprint-1-summary.md
-  sprint-2-summary.md              # NEW
-```
-
-### Localisation
-All user-facing strings live in `lib/l10n/app_it.arb` (primary) and
-`lib/l10n/app_en.arb` (fallback). Code, comments and identifiers are in
-English. Regenerate with `flutter gen-l10n` after editing.
-
-### Tests
-```bash
-# Dart side
+# Dart
 flutter test
 
-# Android JVM side
+# Kotlin / Android JVM
 cd android && ./gradlew :app:testDebugUnitTest
 ```
 
-### Sprint 3 — AccessibilityService (Layer 3)
+---
 
-Sprint 3 adds `SentinelAccessibilityService`, which reads the URL bar
-of a curated set of mainstream browsers and runs the same analysis
-pipeline used by Layer 1 on whatever the user just typed.
+## Struttura del progetto
 
-#### Adding a new browser
-1. Find the browser's package name (`adb shell pm list packages | grep
-   <name>`).
-2. Discover the view id of its URL bar:
+```
+android/app/src/main/kotlin/com/sentinel/app/
+  LinkGateActivity.kt              # Activity unica, wiring di tutti i channel
+  analysis/                        # Pipeline analisi link (L1)
+  bridge/                          # MethodChannel verso Flutter
+  vpn/                             # Implementazione L2 (VpnService + DNS)
+  accessibility/                   # Implementazione L3 (AccessibilityService)
+  persistence/                     # Room DB per eventi e statistiche
+
+android/app/src/main/res/xml/
+  accessibility_service_config.xml # Allow-list browser (enforce di sistema)
+
+android/app/src/main/assets/
+  blacklist/sample.txt             # Blacklist host L1
+  blocklist/ads.txt                # Lista DNS ads/tracker bundled
+  blocklist/malware.txt            # Lista DNS malware bundled
+
+lib/
+  main.dart                        # Inizializzazione Firebase + App Check
+  app/                             # Router, tema
+  features/
+    analysis/                      # Screen analisi + verdetto
+    dashboard/                     # Dashboard L2
+    settings/                      # Impostazioni
+    onboarding/                    # Onboarding utente
+  services/                        # Wrapper MethodChannel + storage locale
+  l10n/                            # ARB strings (IT primario, EN fallback)
+
+docs/
+  architecture.md                  # Diagrammi e design decisions
+  sprint-{1,2,3}-summary.md        # Storia degli sprint
+```
+
+---
+
+## Limitazioni note
+
+- **DNS upstream in chiaro (UDP)**: DoT/DoH non ancora supportati.
+- **Solo IPv4**: la VPN annuncia un solo prefisso IPv4.
+- **L3 fragile per design**: l'estrazione URL si appoggia ai `resource-id`
+  della URL bar dei singoli browser, che possono cambiare a ogni release.
+  C'è un fallback best-effort che cammina nell'albero nodi cercando un
+  `EditText`, ma non è garantito.
+- **Niente iOS**: l'app è Android-only.
+
+---
+
+## Aggiungere un nuovo browser all'L3
+
+1. Recupera il package name del browser:
+   ```bash
+   adb shell pm list packages | grep <nome>
+   ```
+2. Trova il `resource-id` della URL bar:
    ```bash
    adb shell uiautomator dump /sdcard/dump.xml
    adb pull /sdcard/dump.xml
    ```
-   Open `dump.xml`, find the focused EditText / UrlBar; the
-   `resource-id` attribute is the id you need.
-3. Append the package to:
+   Apri `dump.xml`, cerca l'EditText focused.
+3. Aggiungi il package in **tre** posti:
    - `SentinelAccessibilityService.watchedBrowsers`
    - `SentinelAccessibilityService.urlBarIds`
-   - `android/app/src/main/res/xml/accessibility_service_config.xml`
-     (`packageNames=...` attribute)
-4. Bump no version: changes are config-only. Confirm the manifest
-   parses (`flutter build apk --debug`).
+   - `res/xml/accessibility_service_config.xml` (`packageNames`)
+4. Build, install, verifica con
+   `adb logcat -v time SentinelAxs:D *:S`.
 
-#### Debugging the service
-- Enable verbose logging in a debug build:
-  `adb logcat -v time SentinelAxs:D *:S`
-- Force-attach the service after install:
-  `adb shell settings put secure enabled_accessibility_services
-  com.sentinel.app/com.sentinel.app.accessibility.SentinelAccessibilityService`
-  (the user will still need to acknowledge the system dialog on
-  Android 12+).
-- Test the heuristic without a network: type a URL known to be in
-  `android/app/src/main/assets/blacklist/sample.txt` and verify the
-  overlay appears.
+---
 
-#### Privacy guarantees enforced in code
-- `res/xml/accessibility_service_config.xml#packageNames` is the
-  system-enforced allow list. Add a package here and only here to
-  observe it.
-- `SentinelAccessibilityService.watchedBrowsers` is the defense-in-
-  depth Kotlin check on the very first line of
-  `onAccessibilityEvent`.
-- URLs are logged only in `BuildConfig.DEBUG` builds and truncated
-  to 32 characters.
+## Contribuire
 
-### Limitations and future work
-- DNS upstream is plain UDP. DoT/DoH support is deferred.
-- No IPv6 path: the VPN advertises only an IPv4 prefix.
-- Accessibility URL extraction relies on hand-curated view ids; new
-  browser builds can change them without warning. The fallback walks
-  the active window tree but is best-effort.
+PR benvenute. Linee guida minime:
+
+- **Linguaggio**: codice, commenti, identificatori in **inglese**. Stringhe
+  utente in **italiano** (primary) + **inglese** (fallback). Modifica via
+  `lib/l10n/*.arb` e rigenera con `flutter gen-l10n`.
+- **Stile**: `flutter analyze` deve passare pulito.
+- **Test**: aggiungi test per ogni nuovo provider analisi e per ogni
+  modifica al DNS parser.
+- **Sicurezza**: mai committare `google-services.json`, `firebase_options.dart`,
+  `local.properties`, keystore o `key.properties`. Sono già nel `.gitignore`.
+
+---
+
+## Licenza
+
+TBD (suggerito: MIT o Apache-2.0).
+
+---
+
+## Ringraziamenti
+
+- [Google Safe Browsing v4](https://developers.google.com/safe-browsing/v4)
+  per la pipeline di reputazione.
+- [Firebase App Check](https://firebase.google.com/docs/app-check) per
+  attestare l'integrità del client.
+- Le blocklist bundled derivano da liste pubbliche curate dalla community.
