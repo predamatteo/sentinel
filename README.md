@@ -340,7 +340,7 @@ PR benvenute. Linee guida minime:
 
 ## Licenza
 
-TBD (suggerito: MIT o Apache-2.0).
+[MIT](LICENSE) © 2026 Matteo Preda.
 
 ---
 
