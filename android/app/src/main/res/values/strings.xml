@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sentinel</string>
+
+    <!-- Sprint 2: VPN foreground notification. The text template uses
+         the {blocks} placeholder which is substituted in Kotlin at
+         runtime so we do not need positional format arguments here. -->
+    <string name="vpn_notification_channel_name">Sentinel protection</string>
+    <string name="vpn_notification_channel_description">Persistent notification shown while DNS-level protection is active.</string>
+    <string name="vpn_notification_title">Sentinel — Protection active</string>
+    <string name="vpn_notification_text_template">{blocks} domains blocked today</string>
+
+    <!-- Sprint 3: shown by the Android Settings UI in the Accessibility
+         menu. Strings live in res/values* because the system reads them
+         directly; they cannot be served from a Flutter ARB file. -->
+    <string name="accessibility_service_label">Sentinel — Browser guardian</string>
+    <string name="accessibility_service_summary">Checks the sites you open in supported browsers</string>
+    <string name="accessibility_service_description">Sentinel observes the URL in the address bar of supported browsers so it can analyse the sites you open. It does not read page content, messages, emails, passwords or any text from other apps.</string>
+
+    <!-- Strings used by the system-wide overlay built at runtime by
+         OverlayManager. They live here (not in ARB) because the overlay
+         lives inside the AccessibilityService process and has no Flutter
+         engine to resolve ARB keys. -->
+    <string name="overlay_danger_title">Warning</string>
+    <string name="overlay_danger_subtitle">This site is flagged as dangerous.</string>
+    <string name="overlay_reasons_header">Reasons</string>
+    <string name="overlay_danger_back">Go back</string>
+    <string name="overlay_danger_proceed">Proceed anyway</string>
+    <string name="overlay_danger_proceed_toast">You can continue. Sentinel will not interfere with this tab.</string>
+    <string name="overlay_permission_missing">Sentinel needs the overlay permission to show this warning.</string>
+</resources>

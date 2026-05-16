@@ -1,0 +1,187 @@
+{
+  "@@locale": "it",
+  "appName": "Sentinel",
+  "@appName": {
+    "description": "Application name shown in the title bar."
+  },
+
+  "homeTitle": "Sentinel",
+  "homeSubtitle": "Il tuo scudo contro i link pericolosi",
+  "homeDescription": "Quando tocchi un link in WhatsApp, SMS, email o qualsiasi altra app, Sentinel lo analizza prima di aprirlo. Se è sospetto, ti avvisa.",
+  "homeCtaSetDefault": "Imposta Sentinel come browser predefinito",
+  "homeCtaAlreadyDefault": "Sentinel è già il browser predefinito",
+  "homeCtaTestLink": "Prova con un link di esempio",
+  "homeStatusActive": "Protezione attiva",
+  "homeStatusInactive": "Protezione non attiva",
+
+  "onboardingTitle1": "Benvenuto in Sentinel",
+  "onboardingBody1": "Sentinel verifica ogni link prima di aprirlo, aiutandoti a evitare truffe, phishing e siti pericolosi.",
+  "onboardingTitle2": "Come funziona",
+  "onboardingBody2": "Quando tocchi un link, Sentinel lo controlla con i database di Google Safe Browsing e con una lista locale di siti noti per essere dannosi.",
+  "onboardingTitle3": "Imposta come predefinito",
+  "onboardingBody3": "Per proteggere ogni link che apri, imposta Sentinel come browser predefinito. I siti sicuri saranno comunque aperti con Chrome.",
+  "onboardingTitle4": "Filtro DNS sempre attivo",
+  "onboardingBody4": "Sentinel può attivare un filtro DNS che blocca pubblicità invasive e domini sospetti per tutte le app, senza decifrare il traffico HTTPS.",
+  "onboardingNext": "Avanti",
+  "onboardingDone": "Imposta ora",
+  "onboardingSkip": "Salta",
+
+  "analyzingTitle": "Analisi in corso...",
+  "analyzingSubtitle": "Stiamo verificando la sicurezza del link",
+  "analyzingCancel": "Annulla",
+
+  "verdictSafeTitle": "Sito sicuro",
+  "verdictSafeSubtitle": "Nessuna minaccia rilevata",
+  "verdictSafeAction": "Apri ora",
+  "verdictSafeCancel": "Annulla",
+  "verdictSafeAutoRedirect": "Apertura automatica fra {seconds}s",
+  "@verdictSafeAutoRedirect": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+
+  "verdictDangerTitle": "Attenzione",
+  "verdictDangerSubtitle": "Questo sito è segnalato come pericoloso",
+  "verdictDangerReasonsTitle": "Motivi della segnalazione",
+  "verdictDangerSourcesTitle": "Fonti consultate",
+  "verdictDangerBack": "Torna indietro",
+  "verdictDangerProceed": "Procedi comunque",
+  "verdictDangerConfirmTitle": "Sei davvero sicuro?",
+  "verdictDangerConfirmBody": "Stai per aprire un sito segnalato come pericoloso. Potresti rischiare phishing, furto di dati o malware.",
+  "verdictDangerConfirmCancel": "No, annulla",
+  "verdictDangerConfirmProceed": "Sì, apri lo stesso",
+
+  "verdictWarningTitle": "Verifica incompleta",
+  "verdictWarningSubtitle": "Non è stato possibile completare tutti i controlli",
+
+  "settingsTitle": "Impostazioni",
+  "settingsAbout": "Informazioni",
+  "settingsVersion": "Versione",
+  "settingsDefaultBrowser": "Browser predefinito",
+  "settingsDefaultBrowserOpen": "Apri impostazioni di sistema",
+
+  "errorGeneric": "Si è verificato un errore",
+  "errorInvalidUrl": "URL non valido",
+  "errorNoBrowser": "Nessun browser disponibile per aprire il link",
+  "labelUrl": "URL",
+  "labelVerdict": "Esito",
+
+  "dashboardTitle": "Sentinel",
+  "dashboardStatusOnTitle": "Protezione DNS attiva",
+  "dashboardStatusOnSubtitle": "Sentinel sta filtrando pubblicità e domini sospetti per tutte le app.",
+  "dashboardStatusOffTitle": "Protezione DNS non attiva",
+  "dashboardStatusOffSubtitle": "Attiva la VPN locale per bloccare pubblicità e domini sospetti su tutte le app.",
+  "dashboardStatusErrorTitle": "Protezione non disponibile",
+  "dashboardStatusErrorSubtitle": "Non è stato possibile avviare il filtro DNS. Controlla il consenso VPN nelle impostazioni di sistema.",
+  "dashboardToggleEnable": "Attiva protezione",
+  "dashboardToggleDisable": "Disattiva",
+  "dashboardStatsTitle": "Oggi",
+  "dashboardStatAdsBlocked": "Pubblicità bloccate",
+  "dashboardStatThreatsBlocked": "Minacce bloccate",
+  "dashboardStatLinksChecked": "Link verificati",
+  "dashboardRecentTitle": "Blocchi recenti",
+  "dashboardRecentEmpty": "Nessun blocco registrato per il momento.",
+  "dashboardOpenSettings": "Impostazioni",
+  "dashboardSetDefaultBrowser": "Imposta come browser predefinito",
+  "dashboardLearnMore": "Scopri di più",
+
+  "settingsSectionProtection": "Protezione DNS",
+  "settingsProtectionToggle": "Filtro DNS attivo",
+  "settingsProtectionToggleSubtitle": "Avvia il servizio VPN locale che filtra le richieste DNS.",
+  "settingsDnsUpstream": "Server DNS upstream",
+  "settingsDnsUpstreamSubtitle": "Sentinel inoltra a questo server le richieste non bloccate.",
+  "settingsDnsCloudflare": "Cloudflare (1.1.1.1)",
+  "settingsDnsQuad9": "Quad9 (9.9.9.9)",
+  "settingsDnsGoogle": "Google (8.8.8.8)",
+  "settingsDnsCustom": "Personalizzato",
+  "settingsDnsCustomDialogTitle": "DNS personalizzato",
+  "settingsDnsCustomPrimary": "Server primario",
+  "settingsDnsCustomSecondary": "Server secondario",
+  "settingsDnsCustomSave": "Salva",
+  "settingsDnsCustomCancel": "Annulla",
+  "settingsRefreshLists": "Aggiorna liste ora",
+  "settingsRefreshListsSubtitle": "Scarica nuove versioni delle liste di blocco da Firebase Remote Config.",
+  "settingsRefreshDone": "Liste aggiornate",
+  "settingsRefreshError": "Impossibile aggiornare le liste in questo momento.",
+
+  "settingsSectionWhitelist": "Domini consentiti",
+  "settingsWhitelistEmpty": "Nessun dominio nella whitelist. Aggiungi quelli che non vuoi bloccare.",
+  "settingsWhitelistAdd": "Aggiungi dominio",
+  "settingsWhitelistDialogTitle": "Aggiungi dominio alla whitelist",
+  "settingsWhitelistHint": "esempio.com",
+  "settingsWhitelistInvalid": "Inserisci un dominio valido (es. esempio.com).",
+  "settingsWhitelistSave": "Aggiungi",
+  "settingsWhitelistCancel": "Annulla",
+  "settingsWhitelistRemove": "Rimuovi",
+
+  "settingsSectionAbout": "Informazioni",
+  "settingsBuildNumber": "Build",
+
+  "vpnConsentNeededTitle": "Consenso VPN richiesto",
+  "vpnConsentNeededBody": "Per attivare la protezione DNS, Android ti chiederà di consentire una VPN locale. Sentinel non invia alcun traffico fuori dal dispositivo: il tuo traffico web viene solo filtrato.",
+  "vpnConsentDenied": "Consenso VPN negato.",
+  "vpnStartError": "Impossibile avviare il filtro DNS.",
+  "vpnStartedSnack": "Protezione DNS attivata.",
+  "vpnStoppedSnack": "Protezione DNS disattivata.",
+
+  "blockCategoryAds": "Pubblicità",
+  "@blockCategoryAds": {
+    "description": "Chip label shown next to a recent block entry classified as advertising/tracking."
+  },
+  "blockCategoryThreat": "Minaccia",
+  "@blockCategoryThreat": {
+    "description": "Chip label shown next to a recent block entry classified as a security threat."
+  },
+  "dashboardRecentEmptyToday": "Nessun blocco oggi",
+  "@dashboardRecentEmptyToday": {
+    "description": "Empty state for the recent blocks list when no entries exist for the current day."
+  },
+  "relativeUpdatedAt": "Aggiornato {time}",
+  "@relativeUpdatedAt": {
+    "description": "Relative timestamp displayed in the dashboard footer.",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "settingsReleaseSigning": "Firma di rilascio",
+  "@settingsReleaseSigning": {
+    "description": "About section row that explains whether the current build uses a release keystore."
+  },
+  "settingsReleaseSigningDebug": "Build firmata in debug (sideload)",
+  "settingsReleaseSigningRelease": "Build firmata con keystore di rilascio",
+
+  "accessibilityServiceLabel": "Sentinel — Sentinella nei browser",
+  "@accessibilityServiceLabel": {
+    "description": "Mirror of the Android accessibility_service_label used inside the app UI."
+  },
+  "accessibilityServiceSummary": "Verifica i siti che apri nei browser",
+  "@accessibilityServiceSummary": {
+    "description": "Short tagline shown next to the toggle in Settings."
+  },
+  "accessibilityServiceDescription": "Sentinel osserva l'URL nella barra degli indirizzi dei browser supportati per analizzare i siti che apri. Non legge il contenuto delle pagine, non legge messaggi, email, password o testi di altre app.",
+  "accessibilitySettingsSectionTitle": "Protezione avanzata",
+  "accessibilityToggleLabel": "Sentinella nei browser",
+  "accessibilityToggleEnabled": "Attiva",
+  "accessibilityToggleDisabled": "Non attiva",
+  "accessibilityToggleDescription": "Quando è attiva, Sentinel controlla i siti che digiti direttamente nei browser supportati. Tocca per aprire le Impostazioni di accessibilità.",
+  "accessibilityPrivacyDetailsTitle": "Cosa vede Sentinel",
+  "accessibilityPrivacyDetailsBody": "Sentinel legge solo l'URL nella barra degli indirizzi di Chrome, Firefox, Edge, Brave, Samsung Internet, Opera, DuckDuckGo, Ecosia, Vivaldi e Kiwi Browser. Non legge il contenuto delle pagine, dei messaggi, delle email, né i campi password o qualsiasi testo di altre app.",
+  "accessibilityOverlayDangerTitle": "Attenzione",
+  "accessibilityOverlayDangerSubtitle": "Questo sito è segnalato come pericoloso.",
+  "accessibilityOverlayDismiss": "Torna indietro",
+  "accessibilityOverlayProceed": "Procedi comunque",
+  "accessibilityOverlayConfirmTitle": "Sei davvero sicuro?",
+  "accessibilityOverlayConfirmBody": "Stai per aprire un sito segnalato come pericoloso. Potresti rischiare phishing, furto di dati o malware.",
+  "overlayPermissionRequired": "Permesso di sovrapposizione",
+  "overlayPermissionRequiredSubtitle": "Concedi il permesso per mostrare l'avviso quando un sito è pericoloso.",
+  "overlayPermissionGranted": "Concesso",
+  "overlayPermissionMissing": "Non concesso",
+  "dashboardAdvancedProtectionMissing": "Protezione avanzata non attiva",
+  "dashboardAdvancedProtectionMissingCta": "Attiva",
+  "dashboardOverlayPermissionMissing": "Permesso sovrapposizione mancante",
+  "dashboardOverlayPermissionMissingCta": "Concedi",
+  "onboardingTitle5": "Sentinella nei browser",
+  "onboardingBody5": "Sentinel può controllare i siti che digiti direttamente nella barra degli indirizzi dei browser supportati. Lo fa tramite il servizio di accessibilità di Android: non legge il contenuto delle pagine, dei messaggi o di altre app.",
+  "onboardingCtaAccessibility": "Imposta accessibilità"
+}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Sentinel monochrome notification icon. Single-color white fill so the
+    Android system can tint it according to the status-bar theme. The path
+    draws a simple shield outline with an internal check-mark, evoking the
+    "protection active" semantic without leaning on Material Symbols copy.
+    Keep under ~30 path commands for fast software rasterisation on legacy
+    devices.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?android:attr/colorControlNormal">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2L4,5v6c0,5 3.4,9.4 8,11c4.6,-1.6 8,-6 8,-11V5L12,2zM12,4.2l6,2.25V11c0,4.1 -2.7,7.7 -6,9c-3.3,-1.3 -6,-4.9 -6,-9V6.45L12,4.2zM10.6,15.6l-3,-3l1.4,-1.4l1.6,1.6l4.4,-4.4l1.4,1.4L10.6,15.6z"/>
+</vector>

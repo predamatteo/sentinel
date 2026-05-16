@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sentinel</string>
+
+    <string name="vpn_notification_channel_name">Protezione Sentinel</string>
+    <string name="vpn_notification_channel_description">Notifica persistente mostrata mentre la protezione DNS è attiva.</string>
+    <string name="vpn_notification_title">Sentinel — Protezione attiva</string>
+    <string name="vpn_notification_text_template">{blocks} domini bloccati oggi</string>
+
+    <!-- Sprint 3 strings shown in the system Accessibility settings. -->
+    <string name="accessibility_service_label">Sentinel — Sentinella nei browser</string>
+    <string name="accessibility_service_summary">Verifica i siti che apri nei browser</string>
+    <string name="accessibility_service_description">Sentinel osserva l\'URL nella barra degli indirizzi dei browser supportati per analizzare i siti che apri. Non legge il contenuto delle pagine, non legge messaggi, email, password o testi di altre app.</string>
+
+    <string name="overlay_danger_title">Attenzione</string>
+    <string name="overlay_danger_subtitle">Questo sito è segnalato come pericoloso.</string>
+    <string name="overlay_reasons_header">Motivi della segnalazione</string>
+    <string name="overlay_danger_back">Torna indietro</string>
+    <string name="overlay_danger_proceed">Procedi comunque</string>
+    <string name="overlay_danger_proceed_toast">Puoi continuare. Sentinel non interferirà con questa scheda.</string>
+    <string name="overlay_permission_missing">Sentinel ha bisogno del permesso di sovrapposizione per mostrare l\'avviso.</string>
+</resources>

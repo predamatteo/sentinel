@@ -1,0 +1,156 @@
+# Sentinel — Bundled ads / trackers baseline (Sprint 2).
+# Format: one domain per line. Lines beginning with '#' are comments.
+# Entries are matched on the FULL host or any subdomain.
+# Sources: distilled from publicly available EasyList DNS / AdGuard /
+# Steven Black hosts lists. Trimmed to a high-value subset to keep the
+# APK small; remote lists fetched via Remote Config can extend this.
+
+# === Google ad / measurement ===
+doubleclick.net
+googleadservices.com
+googlesyndication.com
+googletagmanager.com
+googletagservices.com
+google-analytics.com
+adservice.google.com
+pagead2.googlesyndication.com
+partner.googleadservices.com
+afs.googlesyndication.com
+www.googletagservices.com
+ad.doubleclick.net
+stats.g.doubleclick.net
+
+# === Facebook / Meta tracking ===
+# Note: graph.facebook.com is intentionally NOT blocked. It is the
+# official Facebook Graph API used by thousands of apps for Facebook
+# Login and basic SDK operations. Blocking it breaks legitimate
+# functionality. It is also defensively kept in defaultWhitelist in
+# BlocklistRepository.kt as a second layer.
+connect.facebook.net
+pixel.facebook.com
+an.facebook.com
+
+# === Amazon ads ===
+amazon-adsystem.com
+aax.amazon-adsystem.com
+amzn.to
+
+# === Microsoft ===
+ads.microsoft.com
+bat.bing.com
+clarity.ms
+
+# === Generic ad networks ===
+adcolony.com
+adform.net
+adnxs.com
+adsafeprotected.com
+adservice.io
+adtechus.com
+advertising.com
+applovin.com
+appsflyer.com
+chartboost.com
+criteo.com
+criteo.net
+flurry.com
+ironsrc.com
+ironsrc-mobile.com
+inmobi.com
+mopub.com
+mparticle.com
+moatads.com
+omtrdc.net
+openx.net
+outbrain.com
+pubmatic.com
+quantserve.com
+rubiconproject.com
+sharethrough.com
+smartadserver.com
+spotxchange.com
+taboola.com
+tapad.com
+tidaltv.com
+turn.com
+unityads.unity3d.com
+yieldlab.net
+yieldmo.com
+
+# === Analytics / telemetry ===
+amplitude.com
+api.amplitude.com
+api.segment.io
+api.mixpanel.com
+mixpanel.com
+segment.com
+segment.io
+hotjar.com
+fullstory.com
+heap.io
+heapanalytics.com
+intercom.io
+optimizely.com
+newrelic.com
+nr-data.net
+chartbeat.com
+chartbeat.net
+quantcast.com
+sentry.io
+scorecardresearch.com
+crazyegg.com
+mouseflow.com
+clicktale.com
+
+# === Italian-focused trackers (typical on local news / e-commerce) ===
+publir.com
+mediaone.it
+trkadm.com
+plista.com
+
+# === Mobile-attribution / SDK trackers ===
+adjust.com
+app.adjust.com
+branch.io
+api.branch.io
+kochava.com
+api.kochava.com
+singular.net
+api.singular.net
+
+# === Misc trackers and beacons ===
+addthis.com
+adsymptotic.com
+disqus.com
+disquscdn.com
+gravatar.com
+keen.io
+loggly.com
+mailtrack.io
+pendo.io
+tag.usercentrics.eu
+usercentrics.eu
+
+# === Mobile-app tracking pixel hosts ===
+ad-mob.com
+admob.com
+firebase-settings.crashlytics.com
+
+# === Push notification spam / popups ===
+notifyio.com
+push-ads.com
+pushwhy.com
+push-notification.world
+
+# === Sketchy crypto miners ===
+coinhive.com
+coin-hive.com
+jsecoin.com
+miner.pr0gramm.com
+webmine.cz
+crypto-loot.com
+cryptoloot.pro
+authedmine.com
+deepminer.com
+minero.cc
+coinpot.co

@@ -1,0 +1,28 @@
+# Sentinel release signing config template.
+#
+# Copy this file to `android/key.properties` (NOT committed to git) and
+# fill the four fields below. When present, the Android Gradle build
+# wires a real release signing config; when missing, it falls back to
+# debug signing so contributors without the keystore can still produce
+# a sideloadable APK.
+#
+# Steps to bootstrap your local release keystore:
+#   1. Generate the keystore (one-time):
+#      keytool -genkey -v \
+#        -keystore sentinel-release.jks \
+#        -keyalg RSA -keysize 2048 \
+#        -validity 10000 \
+#        -alias sentinel
+#   2. Copy this file to `key.properties` and fill the values below.
+#   3. Build: `flutter build apk --release`.
+#   4. Add the release SHA-1 / SHA-256 of the resulting APK to
+#      Firebase Console (App Check) and Google Cloud Console
+#      (Safe Browsing API key restrictions) so the release build is
+#      authorised against the same backends as the debug build.
+#
+# storeFile must be an absolute path or a path relative to /android.
+
+storeFile=PATH/TO/sentinel-release.jks
+storePassword=
+keyAlias=sentinel
+keyPassword=

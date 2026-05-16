@@ -1,0 +1,35 @@
+name: sentinel
+description: "Sentinel - Web security analyzer for Android"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  # Sprint Quality: pin a concrete version so DateFormat usage in
+  # dashboard_screen.dart compiles consistently across machines.
+  intl: ^0.20.2
+  cupertino_icons: ^1.0.8
+
+  # Firebase (Sprint 2). Versions chosen for Flutter 3.41 / Dart 3.11.
+  firebase_core: ^3.6.0
+  firebase_app_check: ^0.3.1+5
+  firebase_remote_config: ^5.1.4
+
+  # Local persistence for user whitelist and lightweight settings.
+  shared_preferences: ^2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true

@@ -1,0 +1,184 @@
+{
+  "@@locale": "en",
+  "appName": "Sentinel",
+
+  "homeTitle": "Sentinel",
+  "homeSubtitle": "Your shield against dangerous links",
+  "homeDescription": "When you tap a link in WhatsApp, SMS, email or any other app, Sentinel checks it before opening. If it looks suspicious you get a warning.",
+  "homeCtaSetDefault": "Set Sentinel as the default browser",
+  "homeCtaAlreadyDefault": "Sentinel is already the default browser",
+  "homeCtaTestLink": "Try with a sample link",
+  "homeStatusActive": "Protection active",
+  "homeStatusInactive": "Protection not active",
+
+  "onboardingTitle1": "Welcome to Sentinel",
+  "onboardingBody1": "Sentinel checks every link before opening it, helping you avoid scams, phishing and dangerous sites.",
+  "onboardingTitle2": "How it works",
+  "onboardingBody2": "When you tap a link, Sentinel checks it against Google Safe Browsing and a local list of known malicious sites.",
+  "onboardingTitle3": "Set as default",
+  "onboardingBody3": "To protect every link you open, set Sentinel as your default browser. Safe sites will still open in Chrome.",
+  "onboardingTitle4": "Always-on DNS filtering",
+  "onboardingBody4": "Sentinel can enable a DNS filter that blocks intrusive ads and suspicious domains for every app, without decrypting HTTPS traffic.",
+  "onboardingNext": "Next",
+  "onboardingDone": "Set now",
+  "onboardingSkip": "Skip",
+
+  "analyzingTitle": "Analyzing...",
+  "analyzingSubtitle": "Checking the safety of this link",
+  "analyzingCancel": "Cancel",
+
+  "verdictSafeTitle": "Safe site",
+  "verdictSafeSubtitle": "No threats detected",
+  "verdictSafeAction": "Open now",
+  "verdictSafeCancel": "Cancel",
+  "verdictSafeAutoRedirect": "Opening in {seconds}s",
+  "@verdictSafeAutoRedirect": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+
+  "verdictDangerTitle": "Warning",
+  "verdictDangerSubtitle": "This site is flagged as dangerous",
+  "verdictDangerReasonsTitle": "Reasons",
+  "verdictDangerSourcesTitle": "Sources consulted",
+  "verdictDangerBack": "Go back",
+  "verdictDangerProceed": "Proceed anyway",
+  "verdictDangerConfirmTitle": "Are you really sure?",
+  "verdictDangerConfirmBody": "You are about to open a site flagged as dangerous. You may be at risk of phishing, data theft or malware.",
+  "verdictDangerConfirmCancel": "No, cancel",
+  "verdictDangerConfirmProceed": "Yes, open anyway",
+
+  "verdictWarningTitle": "Incomplete check",
+  "verdictWarningSubtitle": "Some checks could not be completed",
+
+  "settingsTitle": "Settings",
+  "settingsAbout": "About",
+  "settingsVersion": "Version",
+  "settingsDefaultBrowser": "Default browser",
+  "settingsDefaultBrowserOpen": "Open system settings",
+
+  "errorGeneric": "An error occurred",
+  "errorInvalidUrl": "Invalid URL",
+  "errorNoBrowser": "No browser available to open this link",
+  "labelUrl": "URL",
+  "labelVerdict": "Verdict",
+
+  "dashboardTitle": "Sentinel",
+  "dashboardStatusOnTitle": "DNS protection active",
+  "dashboardStatusOnSubtitle": "Sentinel is filtering ads and suspicious domains for every app.",
+  "dashboardStatusOffTitle": "DNS protection not active",
+  "dashboardStatusOffSubtitle": "Turn on the local VPN to block ads and suspicious domains across all apps.",
+  "dashboardStatusErrorTitle": "Protection unavailable",
+  "dashboardStatusErrorSubtitle": "Could not start the DNS filter. Check the VPN consent in system settings.",
+  "dashboardToggleEnable": "Enable protection",
+  "dashboardToggleDisable": "Disable",
+  "dashboardStatsTitle": "Today",
+  "dashboardStatAdsBlocked": "Ads blocked",
+  "dashboardStatThreatsBlocked": "Threats blocked",
+  "dashboardStatLinksChecked": "Links checked",
+  "dashboardRecentTitle": "Recent blocks",
+  "dashboardRecentEmpty": "No blocks recorded yet.",
+  "dashboardOpenSettings": "Settings",
+  "dashboardSetDefaultBrowser": "Set as default browser",
+  "dashboardLearnMore": "Learn more",
+
+  "settingsSectionProtection": "DNS protection",
+  "settingsProtectionToggle": "DNS filter enabled",
+  "settingsProtectionToggleSubtitle": "Starts the local VPN service that filters DNS queries.",
+  "settingsDnsUpstream": "Upstream DNS server",
+  "settingsDnsUpstreamSubtitle": "Sentinel forwards unblocked queries to this server.",
+  "settingsDnsCloudflare": "Cloudflare (1.1.1.1)",
+  "settingsDnsQuad9": "Quad9 (9.9.9.9)",
+  "settingsDnsGoogle": "Google (8.8.8.8)",
+  "settingsDnsCustom": "Custom",
+  "settingsDnsCustomDialogTitle": "Custom DNS",
+  "settingsDnsCustomPrimary": "Primary server",
+  "settingsDnsCustomSecondary": "Secondary server",
+  "settingsDnsCustomSave": "Save",
+  "settingsDnsCustomCancel": "Cancel",
+  "settingsRefreshLists": "Refresh lists now",
+  "settingsRefreshListsSubtitle": "Download the latest block lists from Firebase Remote Config.",
+  "settingsRefreshDone": "Lists refreshed",
+  "settingsRefreshError": "Could not refresh lists right now.",
+
+  "settingsSectionWhitelist": "Allowed domains",
+  "settingsWhitelistEmpty": "No domains in the whitelist. Add domains you do not want to block.",
+  "settingsWhitelistAdd": "Add domain",
+  "settingsWhitelistDialogTitle": "Add domain to whitelist",
+  "settingsWhitelistHint": "example.com",
+  "settingsWhitelistInvalid": "Please enter a valid domain (e.g. example.com).",
+  "settingsWhitelistSave": "Add",
+  "settingsWhitelistCancel": "Cancel",
+  "settingsWhitelistRemove": "Remove",
+
+  "settingsSectionAbout": "About",
+  "settingsBuildNumber": "Build",
+
+  "vpnConsentNeededTitle": "VPN consent required",
+  "vpnConsentNeededBody": "To activate DNS protection Android will prompt you to allow a local VPN. Sentinel sends no traffic off the device: your web traffic is only filtered.",
+  "vpnConsentDenied": "VPN consent denied.",
+  "vpnStartError": "Could not start the DNS filter.",
+  "vpnStartedSnack": "DNS protection enabled.",
+  "vpnStoppedSnack": "DNS protection disabled.",
+
+  "blockCategoryAds": "Ads",
+  "@blockCategoryAds": {
+    "description": "Chip label shown next to a recent block entry classified as advertising/tracking."
+  },
+  "blockCategoryThreat": "Threat",
+  "@blockCategoryThreat": {
+    "description": "Chip label shown next to a recent block entry classified as a security threat."
+  },
+  "dashboardRecentEmptyToday": "No blocks today",
+  "@dashboardRecentEmptyToday": {
+    "description": "Empty state for the recent blocks list when no entries exist for the current day."
+  },
+  "relativeUpdatedAt": "Updated {time}",
+  "@relativeUpdatedAt": {
+    "description": "Relative timestamp displayed in the dashboard footer.",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "settingsReleaseSigning": "Release signing",
+  "@settingsReleaseSigning": {
+    "description": "About section row that explains whether the current build uses a release keystore."
+  },
+  "settingsReleaseSigningDebug": "Debug-signed build (sideload)",
+  "settingsReleaseSigningRelease": "Signed with release keystore",
+
+  "accessibilityServiceLabel": "Sentinel — Browser guardian",
+  "@accessibilityServiceLabel": {
+    "description": "Mirror of the Android accessibility_service_label used inside the app UI."
+  },
+  "accessibilityServiceSummary": "Checks the sites you open in supported browsers",
+  "@accessibilityServiceSummary": {
+    "description": "Short tagline shown next to the toggle in Settings."
+  },
+  "accessibilityServiceDescription": "Sentinel observes the URL in the address bar of supported browsers so it can analyse the sites you open. It does not read page content, messages, emails, passwords or any text from other apps.",
+  "accessibilitySettingsSectionTitle": "Advanced protection",
+  "accessibilityToggleLabel": "Browser guardian",
+  "accessibilityToggleEnabled": "Enabled",
+  "accessibilityToggleDisabled": "Not enabled",
+  "accessibilityToggleDescription": "When enabled, Sentinel checks the URLs you type directly into supported browsers. Tap to open the Accessibility settings.",
+  "accessibilityPrivacyDetailsTitle": "What Sentinel sees",
+  "accessibilityPrivacyDetailsBody": "Sentinel only reads the URL in the address bar of Chrome, Firefox, Edge, Brave, Samsung Internet, Opera, DuckDuckGo, Ecosia, Vivaldi and Kiwi Browser. It does not read page content, messages, emails, password fields or any text from other apps.",
+  "accessibilityOverlayDangerTitle": "Warning",
+  "accessibilityOverlayDangerSubtitle": "This site is flagged as dangerous.",
+  "accessibilityOverlayDismiss": "Go back",
+  "accessibilityOverlayProceed": "Proceed anyway",
+  "accessibilityOverlayConfirmTitle": "Are you really sure?",
+  "accessibilityOverlayConfirmBody": "You are about to open a site flagged as dangerous. You may be at risk of phishing, data theft or malware.",
+  "overlayPermissionRequired": "Overlay permission",
+  "overlayPermissionRequiredSubtitle": "Grant permission so Sentinel can show a warning when a site is dangerous.",
+  "overlayPermissionGranted": "Granted",
+  "overlayPermissionMissing": "Not granted",
+  "dashboardAdvancedProtectionMissing": "Advanced protection not active",
+  "dashboardAdvancedProtectionMissingCta": "Enable",
+  "dashboardOverlayPermissionMissing": "Overlay permission missing",
+  "dashboardOverlayPermissionMissingCta": "Grant",
+  "onboardingTitle5": "Browser guardian",
+  "onboardingBody5": "Sentinel can check URLs that you type directly into the address bar of supported browsers. It uses Android's Accessibility service for this: it does not read page content, messages or any other apps.",
+  "onboardingCtaAccessibility": "Open Accessibility settings"
+}

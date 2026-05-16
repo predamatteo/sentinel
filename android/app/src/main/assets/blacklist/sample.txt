@@ -1,0 +1,57 @@
+# Sentinel — Local blacklist sample (Sprint 1)
+# One entry per line. Lines starting with '#' are comments.
+# Matching is host-based: an entry matches the full host or any subdomain.
+# Entries below are intentionally fake / typo-squatting style examples used
+# to exercise the analyzer end-to-end during manual testing.
+
+# --- Banking / payment phishing look-alikes ---
+paypa1-secure.com
+paypal-verify-account.com
+paypal-login-it.com
+intesa-sanpaolo-secure.com
+intesasanpaolo-verifica.com
+poste-italiane-verifica.com
+poste-italiane-secure.net
+posteitaliane-areariservata.com
+unicredit-verifica-account.com
+n26-supporto-clienti.com
+revolut-clienti-supporto.com
+
+# --- Public administration / tax scams (Italian targets) ---
+inps-rimborso.fake
+inps-rimborso-erogato.com
+agenziaentrate-rimborso.com
+agenzia-entrate-rimborsi.net
+agenzia-delle-entrate-italia.com
+fascicolosanitario-rimborso.com
+spid-attivazione-rapida.com
+spid-recupero-credenziali.com
+
+# --- Logistics / parcel delivery scams ---
+sda-tracking-pacco.com
+gls-italia-tracking.net
+brt-pagamento-spedizione.com
+poste-tracking-pacco.net
+amazon-it-conferma-ordine.com
+amazon-it-secure-login.com
+prime-rinnovo-abbonamento.com
+
+# --- Streaming / subscription scams ---
+netflix-aggiorna-pagamento.com
+netflix-it-rinnovo.com
+disney-plus-rinnovo.it.fake
+spotify-premium-rinnovo.net
+
+# --- Social / messaging credential theft ---
+facebook-account-recovery-it.com
+instagram-verifica-profilo.com
+whatsapp-web-accesso.com
+whatsapp-verifica-codice.com
+telegram-premium-gratis.com
+
+# --- Generic phishing infrastructure ---
+secure-login-update.com
+account-verification-required.com
+verify-your-identity-now.net
+login-attempt-suspended.com
+suspicious-activity-alert.com

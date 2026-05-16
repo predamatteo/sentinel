@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Brand palette anchored to the Material 3 seed colour declared in
+        lib/app/theme.dart (SentinelColors.seed). Defined here so that
+        NotificationCompat.Builder.setColor can pull it from resources
+        instead of duplicating the hex value in Kotlin.
+    -->
+    <color name="sentinel_brand_primary">#FF1A237E</color>
+</resources>

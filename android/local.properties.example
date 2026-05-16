@@ -1,0 +1,9 @@
+sdk.dir=C:\\Users\\YOURNAME\\AppData\\Local\\Android\\sdk
+flutter.sdk=C:\\Flutter\\flutter
+flutter.buildMode=debug
+flutter.versionName=1.0.0
+flutter.versionCode=1
+
+# Google Safe Browsing API key (vera chiave server — NON committare il file reale)
+# https://developers.google.com/safe-browsing/v4/get-started
+SAFE_BROWSING_API_KEY=YOUR_SAFE_BROWSING_API_KEY

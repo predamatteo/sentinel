@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Sprint 3: configures SentinelAccessibilityService.
+
+    Key flags:
+      - accessibilityEventTypes: only the three event families needed
+        to track the URL bar AND detect when the user leaves the
+        browser (so the overlay can auto-dismiss).
+      - canRetrieveWindowContent: required so we can call
+        findAccessibilityNodeInfosByViewId on the URL bar.
+      - flagReportViewIds: required for the same lookup.
+
+    Why no `packageNames=` filter:
+      Sprint 3 hot-fix (2026-05-15) — the auto-dismiss UX needs to
+      know when the user leaves the watched browser to swipe up to
+      recents / launcher / another app, so we must receive
+      TYPE_WINDOW_STATE_CHANGED events from those packages too.
+      The privacy contract is preserved at the *Kotlin* layer: for
+      TEXT_CHANGED and CONTENT_CHANGED events we still drop in O(1)
+      everything that is not in the curated `watchedBrowsers` set —
+      so no string content from other apps is ever read. Only the
+      package name of the foreground window is observed, and only
+      to decide whether to dismiss our own overlay.
+
+    notificationTimeout=100 means the framework coalesces events within
+    100ms before delivering them.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/accessibility_service_description"
+    android:summary="@string/accessibility_service_summary"
+    android:accessibilityEventTypes="typeViewTextChanged|typeWindowContentChanged|typeWindowStateChanged"
+    android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:canRetrieveWindowContent="true"
+    android:notificationTimeout="100" />
