@@ -55,7 +55,12 @@ class SentinelVpnService : VpnService() {
 
     override fun onCreate() {
         super.onCreate()
-        blocklist = BlocklistRepository(applicationContext)
+        // Singleton: shares state with the LinkGateActivity-side instance
+        // so user-whitelist updates issued by Settings reach the running
+        // tunnel without a service restart. The same instance also loads
+        // the persisted user whitelist from disk, so it survives device
+        // reboot when Android auto-restarts the VPN before Flutter starts.
+        blocklist = BlocklistRepository.getInstance(applicationContext)
         VpnControllerHolder.markRunning(true)
     }
 

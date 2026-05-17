@@ -100,7 +100,10 @@ class LinkGateActivity : FlutterActivity() {
         analysis.attach(flutterEngine)
         analysisChannel = analysis
 
-        val blocklistRepo = BlocklistRepository(applicationContext)
+        // Singleton: the same instance is reused by SentinelVpnService so
+        // a setUserWhitelist call from the Settings UI takes effect on the
+        // running tunnel without an additional IPC hop.
+        val blocklistRepo = BlocklistRepository.getInstance(applicationContext)
         val controller = VpnController(applicationContext, blocklistRepo)
         val vpn = VpnChannel(
             controller = controller,

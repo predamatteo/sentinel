@@ -38,11 +38,12 @@ class BlocklistRepository(
     private val context: Context,
     private val bundledAds: List<String> = listOf("blocklist/ads.txt"),
     private val bundledThreats: List<String> = listOf("blocklist/malware.txt"),
+    private val whitelistController: WhitelistController =
+        WhitelistController(SharedPrefsUserWhitelistStore(context)),
 ) {
     private val mutex = Mutex()
     private val adsSet: AtomicReference<Set<String>> = AtomicReference(emptySet())
     private val threatsSet: AtomicReference<Set<String>> = AtomicReference(emptySet())
-    private val whitelist: AtomicReference<Set<String>> = AtomicReference(emptySet())
 
     // Default whitelist: critical domains for authentication and core OS
     // functionality that must never be blocked, even if a public list
@@ -174,10 +175,11 @@ class BlocklistRepository(
      * security signal is the more conservative one.
      */
     fun lookup(domain: String): MatchResult {
-        val mergedWhitelist = if (whitelist.get().isEmpty()) {
+        val user = whitelistController.current()
+        val mergedWhitelist = if (user.isEmpty()) {
             defaultWhitelist
         } else {
-            defaultWhitelist + whitelist.get()
+            defaultWhitelist + user
         }
         return classify(domain, threatsSet.get(), adsSet.get(), mergedWhitelist)
     }
@@ -185,14 +187,17 @@ class BlocklistRepository(
     /** Total entries across both categories (deduped). */
     fun size(): Int = adsSet.get().size + threatsSet.get().size
 
-    /** Replace the user whitelist. Subsequent lookups honor it. */
+    /**
+     * Replace the user whitelist and persist it to disk. Subsequent
+     * [lookup] calls honor the new set, and the whitelist survives
+     * process death, VPN service restarts, and device reboot.
+     */
     fun setUserWhitelist(domains: Collection<String>) {
-        val normalised = domains.asSequence()
-            .map { it.lowercase().trim().trimEnd('.') }
-            .filter { it.isNotBlank() }
-            .toHashSet()
-        whitelist.set(normalised)
+        whitelistController.replace(domains)
     }
+
+    /** Current user whitelist snapshot (excluding [defaultWhitelist]). */
+    fun userWhitelist(): Set<String> = whitelistController.current()
 
     private fun cacheDir(): File {
         val dir = File(context.filesDir, "blocklists")
@@ -263,6 +268,31 @@ class BlocklistRepository(
 
     companion object {
         private const val TAG = "BlocklistRepository"
+
+        @Volatile
+        private var INSTANCE: BlocklistRepository? = null
+
+        /**
+         * Process-wide singleton. Both [com.sentinel.app.LinkGateActivity]
+         * (Flutter engine attach) and [SentinelVpnService] (worker)
+         * MUST go through this so any [setUserWhitelist] call propagates
+         * to the running tunnel without an additional broadcast.
+         *
+         * Threading: double-checked lock; the constructor is cheap (no
+         * I/O beyond the SharedPreferences read of the persisted user
+         * whitelist) so blocking under the monitor briefly is fine.
+         */
+        fun getInstance(context: Context): BlocklistRepository {
+            val existing = INSTANCE
+            if (existing != null) return existing
+            synchronized(this) {
+                val again = INSTANCE
+                if (again != null) return again
+                val created = BlocklistRepository(context.applicationContext)
+                INSTANCE = created
+                return created
+            }
+        }
 
         /**
          * Pure matching function exposed for unit testing. Threats are
