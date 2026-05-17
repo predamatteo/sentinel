@@ -59,6 +59,13 @@ class BlocklistRepository(
         "appleid.apple.com",         // Sign in with Apple
         "id.atlassian.com",
         "auth.docker.io",
+        // SERP click redirectors: blocking these makes Chrome show
+        // "Sito non raggiungibile" when the user clicks on a sponsored
+        // result, even though the destination is legitimate. Ad-delivery
+        // subdomains (partner.googleadservices.com, pagead2.googlesyndication.com,
+        // ad.doubleclick.net, ...) remain blocked via ads.txt.
+        "googleadservices.com",
+        "www.googleadservices.com",
     )
 
     /**

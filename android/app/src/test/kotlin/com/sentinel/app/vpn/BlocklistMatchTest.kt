@@ -172,4 +172,47 @@ class BlocklistMatchTest {
         )
         assertTrue(result is MatchResult.Allowed)
     }
+
+    @Test
+    fun googleAdservicesApexAllowedSoSerpClicksWork() {
+        // Regression guard: the apex googleadservices.com is the
+        // redirector Chrome opens when a user clicks on a "Sponsorizzato"
+        // SERP result. Blocking it returns NXDOMAIN and Chrome shows
+        // "Sito non raggiungibile" even when the destination is
+        // legitimate. The ad-delivery subdomain partner.googleadservices.com
+        // is still expected to be blocked.
+        val whitelist = setOf("googleadservices.com", "www.googleadservices.com")
+        val adsWithApex = setOf("googleadservices.com", "partner.googleadservices.com")
+
+        // Apex + canonical www. variant: must be allowed.
+        val apex = BlocklistRepository.classify(
+            "googleadservices.com",
+            emptySet(),
+            adsWithApex,
+            whitelist,
+        )
+        assertTrue("apex must be allowed", apex is MatchResult.Allowed)
+
+        val www = BlocklistRepository.classify(
+            "www.googleadservices.com",
+            emptySet(),
+            adsWithApex,
+            whitelist,
+        )
+        assertTrue("www variant must be allowed", www is MatchResult.Allowed)
+
+        // partner.* must still be blocked even though the apex is
+        // whitelisted — the parent-label climb finds the whitelist
+        // entry only for the apex, not the partner subdomain.
+        val partner = BlocklistRepository.classify(
+            "partner.googleadservices.com",
+            emptySet(),
+            adsWithApex,
+            whitelist,
+        )
+        assertTrue(
+            "partner.googleadservices.com must remain blocked for ad delivery",
+            partner is MatchResult.BlockedByAds,
+        )
+    }
 }

@@ -6,8 +6,16 @@
 # APK small; remote lists fetched via Remote Config can extend this.
 
 # === Google ad / measurement ===
+# Note: googleadservices.com is intentionally NOT blocked at the apex.
+# It is the redirector that Chrome opens when a user clicks on a
+# "Sponsorizzato" SERP result (URL shape: www.googleadservices.com/
+# pagead/aclk?...&adurl=https://destination.com). Blocking the apex
+# returns NXDOMAIN to Chrome and the user sees "Sito non raggiungibile"
+# even when the destination is legitimate. The actual ad-delivery
+# subdomains (partner.googleadservices.com) stay blocked below; the
+# apex is also defensively pinned in BlocklistRepository.defaultWhitelist
+# as a second layer.
 doubleclick.net
-googleadservices.com
 googlesyndication.com
 googletagmanager.com
 googletagservices.com
