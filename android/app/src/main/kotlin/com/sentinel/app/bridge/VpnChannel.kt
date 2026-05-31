@@ -15,6 +15,8 @@ import io.flutter.plugin.common.MethodChannel
  *  - confirmStart() -> Boolean
  *  - stop() -> Boolean
  *  - isRunning() -> Boolean
+ *  - isHotspotActive() -> Boolean
+ *  - openHotspotSettings() -> Boolean
  *  - getStats() -> Map<String, Any?>
  *  - setWhitelist({ domains: List<String> }) -> Boolean
  *  - refreshRemoteLists({ targets: Map<String, String> }) -> Boolean
@@ -56,6 +58,11 @@ class VpnChannel(
             "confirmStart" -> handleConfirmStart(result)
             "stop" -> { controller.stop(); result.success(true) }
             "isRunning" -> result.success(controller.isRunning())
+            "isHotspotActive" -> result.success(controller.isHotspotActive())
+            "openHotspotSettings" -> {
+                controller.openHotspotSettings()
+                result.success(true)
+            }
             "getStats" -> result.success(controller.snapshotStats())
             "setWhitelist" -> {
                 val domains = (call.argument<List<*>>("domains") ?: emptyList<Any?>())

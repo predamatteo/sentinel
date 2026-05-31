@@ -1,8 +1,10 @@
 package com.sentinel.app.vpn
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
+import android.provider.Settings
 import androidx.core.content.ContextCompat
 import com.sentinel.app.analysis.AnalysisStats
 import kotlinx.coroutines.CoroutineScope
@@ -62,6 +64,43 @@ class VpnController(
     }
 
     fun isRunning(): Boolean = VpnControllerHolder.isRunning()
+
+    /**
+     * Best-effort check for an active tethering / hotspot interface. Used
+     * by the dashboard to warn that tethered clients are unprotected and
+     * may need the hotspot recycled after the VPN is stopped. See
+     * [TetheringDetector] for why this is heuristic.
+     */
+    fun isHotspotActive(): Boolean = TetheringDetector.isHotspotActive()
+
+    /**
+     * Open the system tethering / wireless settings so the user can recycle
+     * the hotspot. The dedicated TetherSettings screen is not part of the
+     * public SDK and varies by OEM, so we try it first and fall back to the
+     * guaranteed wireless-settings panel, then to top-level settings.
+     */
+    fun openHotspotSettings() {
+        val candidates = listOf(
+            Intent().setClassName(
+                "com.android.settings",
+                "com.android.settings.TetherSettings",
+            ),
+            Intent(Settings.ACTION_WIRELESS_SETTINGS),
+            Intent(Settings.ACTION_SETTINGS),
+        )
+        for (intent in candidates) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                context.startActivity(intent)
+                return
+            } catch (_: ActivityNotFoundException) {
+                // Target not present on this OEM; try the next candidate.
+            } catch (_: Exception) {
+                // Some OEMs throw SecurityException for the explicit
+                // component; fall through to the next candidate.
+            }
+        }
+    }
 
     /**
      * Build a combined snapshot of VPN and analysis counters. Used as the

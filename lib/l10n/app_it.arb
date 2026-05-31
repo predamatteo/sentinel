@@ -183,5 +183,17 @@
   "dashboardOverlayPermissionMissingCta": "Concedi",
   "onboardingTitle5": "Sentinella nei browser",
   "onboardingBody5": "Sentinel può controllare i siti che digiti direttamente nella barra degli indirizzi dei browser supportati. Lo fa tramite il servizio di accessibilità di Android: non legge il contenuto delle pagine, dei messaggi o di altre app.",
-  "onboardingCtaAccessibility": "Imposta accessibilità"
+  "onboardingCtaAccessibility": "Imposta accessibilità",
+  "dashboardHotspotWarningTitle": "Hotspot attivo",
+  "@dashboardHotspotWarningTitle": {
+    "description": "Title of the dashboard banner shown when a Wi-Fi/USB hotspot is detected as active."
+  },
+  "dashboardHotspotWarningBody": "I dispositivi connessi all'hotspot non sono protetti da Sentinel. Se restano senza Internet dopo aver disattivato la protezione, spegni e riaccendi l'hotspot.",
+  "@dashboardHotspotWarningBody": {
+    "description": "Body of the hotspot advisory banner: tethered clients are unprotected and the hotspot must be recycled to restore their DNS."
+  },
+  "dashboardHotspotWarningCta": "Impostazioni hotspot",
+  "@dashboardHotspotWarningCta": {
+    "description": "Button on the hotspot advisory banner that opens system tethering settings."
+  }
 }

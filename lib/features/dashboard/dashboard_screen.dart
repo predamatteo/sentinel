@@ -46,6 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool? _isDefaultBrowser;
   bool _accessibilityEnabled = false;
   bool _overlayAllowed = false;
+  bool _hotspotActive = false;
   VpnStats _stats = VpnStats.empty;
   DateTime _lastUpdated = DateTime.now();
 
@@ -113,6 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _runningPollTimer?.cancel();
     _runningPollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _refreshRunning();
+      _refreshHotspot();
     });
   }
 
@@ -122,6 +124,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       _refreshStatsOnce(),
       _refreshDefaultBrowser(),
       _refreshAccessibility(),
+      _refreshHotspot(),
     ]);
   }
 
@@ -139,6 +142,12 @@ class _DashboardScreenState extends State<DashboardScreen>
     final running = await widget.vpnService.isRunning();
     if (!mounted) return;
     setState(() => _vpnRunning = running);
+  }
+
+  Future<void> _refreshHotspot() async {
+    final active = await widget.vpnService.isHotspotActive();
+    if (!mounted || active == _hotspotActive) return;
+    setState(() => _hotspotActive = active);
   }
 
   Future<void> _refreshStatsOnce() async {
@@ -251,6 +260,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     await _accessibility.openOverlaySettings();
   }
 
+  Future<void> _openHotspotSettings() async {
+    await widget.vpnService.openHotspotSettings();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -286,6 +299,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                 onToggle: _toggleVpn,
               ),
               const SizedBox(height: 16),
+              if (_hotspotActive)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: _HotspotAdvisoryCard(
+                    onOpenSettings: _openHotspotSettings,
+                  ),
+                ),
               if (_isDefaultBrowser == false)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -743,6 +763,65 @@ class _DefaultBrowserCta extends StatelessWidget {
                 AppLocalizations.of(context).homeCtaSetDefault,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Advisory shown when a Wi-Fi/USB hotspot is active. Tethered clients are
+/// not protected by Sentinel and — because Android's tethering DNS
+/// forwarder snapshots our sinkhole as its upstream — may stay offline
+/// until the hotspot is recycled, even after the VPN is stopped. Uses
+/// tertiary-container colours so it adapts to light/dark, unlike the fixed
+/// [SentinelColors.warningContainer] used by the status card.
+class _HotspotAdvisoryCard extends StatelessWidget {
+  const _HotspotAdvisoryCard({required this.onOpenSettings});
+
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final fg = theme.colorScheme.onTertiaryContainer;
+    return Card(
+      color: theme.colorScheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.wifi_tethering, color: fg),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    l10n.dashboardHotspotWarningTitle,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: fg,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.dashboardHotspotWarningBody,
+              style: theme.textTheme.bodyMedium?.copyWith(color: fg),
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onOpenSettings,
+                style: TextButton.styleFrom(foregroundColor: fg),
+                child: Text(l10n.dashboardHotspotWarningCta),
               ),
             ),
           ],

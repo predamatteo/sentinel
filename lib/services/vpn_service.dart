@@ -216,6 +216,26 @@ class VpnService {
     return v ?? false;
   }
 
+  /// Best-effort check for an active Wi-Fi/USB/Bluetooth tethering
+  /// interface. When true, devices connected to the phone's hotspot are
+  /// not protected by Sentinel and may lose DNS resolution until the
+  /// hotspot is recycled. Returns false on any platform error.
+  Future<bool> isHotspotActive() async {
+    try {
+      final v = await _channel.invokeMethod<bool>('isHotspotActive');
+      return v ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  /// Opens the system tethering / wireless settings so the user can toggle
+  /// the hotspot off and on, which restores the tethered DNS forwarder
+  /// after Sentinel has been stopped.
+  Future<void> openHotspotSettings() async {
+    await _channel.invokeMethod<bool>('openHotspotSettings');
+  }
+
   Future<VpnStats> getStats() async {
     try {
       final raw =
