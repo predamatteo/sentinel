@@ -69,6 +69,31 @@ class BlocklistRepository(
         "www.googleadservices.com",
     )
 
+    // Precomputed union of defaultWhitelist + the current user whitelist,
+    // recomputed only when the user list changes (constructor +
+    // setUserWhitelist). The DNS hot path reads this lock-free instead of
+    // allocating a fresh merged set on every single lookup.
+    //
+    // Trade-off: setUserWhitelist does two separate writes (replace then
+    // recompute), so there is a sub-microsecond window where lookup() may
+    // still see the previous merged set. This is benign — setUserWhitelist
+    // is a rare, manual user action and the hot-path savings (no per-query
+    // set allocation, called millions of times) far outweigh a transient
+    // window on a deliberate config change.
+    private val mergedWhitelistRef: AtomicReference<Set<String>> =
+        AtomicReference(defaultWhitelist)
+
+    init {
+        recomputeMergedWhitelist()
+    }
+
+    private fun recomputeMergedWhitelist() {
+        val user = whitelistController.current()
+        mergedWhitelistRef.set(
+            if (user.isEmpty()) defaultWhitelist else defaultWhitelist + user,
+        )
+    }
+
     /**
      * Load the bundled lists and any cached remote lists. Idempotent: a
      * second call performs no I/O if the in-memory state is already
@@ -175,13 +200,7 @@ class BlocklistRepository(
      * security signal is the more conservative one.
      */
     fun lookup(domain: String): MatchResult {
-        val user = whitelistController.current()
-        val mergedWhitelist = if (user.isEmpty()) {
-            defaultWhitelist
-        } else {
-            defaultWhitelist + user
-        }
-        return classify(domain, threatsSet.get(), adsSet.get(), mergedWhitelist)
+        return classify(domain, threatsSet.get(), adsSet.get(), mergedWhitelistRef.get())
     }
 
     /** Total entries across both categories (deduped). */
@@ -194,6 +213,7 @@ class BlocklistRepository(
      */
     fun setUserWhitelist(domains: Collection<String>) {
         whitelistController.replace(domains)
+        recomputeMergedWhitelist()
     }
 
     /** Current user whitelist snapshot (excluding [defaultWhitelist]). */

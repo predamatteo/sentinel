@@ -95,6 +95,85 @@ internal object DnsPacketParser {
     }
 
     /**
+     * Return a copy of [payload] whose 2-byte DNS transaction id (bytes
+     * 0-1) is overwritten with [newId]. Used both to NAT-rewrite an
+     * outgoing query's id (forwarder correlation) and to re-stamp a cached
+     * answer template for a new requester. The input is never mutated.
+     */
+    fun rewriteTransactionId(payload: ByteArray, newId: Int): ByteArray {
+        val copy = payload.copyOf()
+        if (copy.size >= 2) {
+            copy[0] = (newId ushr 8).toByte()
+            copy[1] = newId.toByte()
+        }
+        return copy
+    }
+
+    /**
+     * Minimal parser over a DNS *response* payload, extracting the RCODE,
+     * the truncation (TC) flag, and the minimum TTL across the answer
+     * records. Used to decide cacheability and expiry. Returns null on
+     * malformed input (caller simply does not cache).
+     *
+     * Walks the question and answer sections honoring label compression;
+     * Authority/Additional sections are not parsed (negative caching via
+     * SOA is intentionally out of scope).
+     */
+    fun parseAnswerTtlAndRcode(payload: ByteArray): AnswerInfo? {
+        if (payload.size < HEADER_LENGTH) return null
+        val flags = ((payload[2].toInt() and 0xFF) shl 8) or (payload[3].toInt() and 0xFF)
+        val rcode = flags and 0x000F
+        val truncated = (flags and 0x0200) != 0
+        val qdCount = ((payload[4].toInt() and 0xFF) shl 8) or (payload[5].toInt() and 0xFF)
+        val anCount = ((payload[6].toInt() and 0xFF) shl 8) or (payload[7].toInt() and 0xFF)
+
+        var offset = HEADER_LENGTH
+        repeat(qdCount) {
+            val nameEnd = skipName(payload, offset) ?: return null
+            offset = nameEnd + 4 // qtype(2) + qclass(2)
+            if (offset > payload.size) return null
+        }
+        if (anCount == 0) return AnswerInfo(rcode, 0L, truncated)
+
+        var minTtl = Long.MAX_VALUE
+        repeat(anCount) {
+            val nameEnd = skipName(payload, offset) ?: return null
+            // type(2) class(2) ttl(4) rdlength(2) = 10 bytes of fixed RR header
+            if (nameEnd + 10 > payload.size) return null
+            val ttl = ((payload[nameEnd + 4].toLong() and 0xFF) shl 24) or
+                ((payload[nameEnd + 5].toLong() and 0xFF) shl 16) or
+                ((payload[nameEnd + 6].toLong() and 0xFF) shl 8) or
+                (payload[nameEnd + 7].toLong() and 0xFF)
+            val rdLength = ((payload[nameEnd + 8].toInt() and 0xFF) shl 8) or
+                (payload[nameEnd + 9].toInt() and 0xFF)
+            if (ttl < minTtl) minTtl = ttl
+            offset = nameEnd + 10 + rdLength
+            if (offset > payload.size) return null
+        }
+        return AnswerInfo(rcode, if (minTtl == Long.MAX_VALUE) 0L else minTtl, truncated)
+    }
+
+    /**
+     * Skip a domain name starting at [offset], returning the offset
+     * immediately after it. A compression pointer terminates the name in
+     * two bytes (we never follow it here — we only need the byte length).
+     * Returns null on malformed input.
+     */
+    private fun skipName(data: ByteArray, offset: Int): Int? {
+        var i = offset
+        while (i < data.size) {
+            val len = data[i].toInt() and 0xFF
+            if (len == 0) return i + 1
+            if ((len and 0xC0) == 0xC0) {
+                return if (i + 2 <= data.size) i + 2 else null
+            }
+            if ((len and 0xC0) != 0) return null
+            i += 1 + len
+        }
+        return null
+    }
+
+    /**
      * Read a domain name encoded as a sequence of labels starting at
      * [offset] in [data]. Supports label compression by pointer.
      *
@@ -150,3 +229,14 @@ internal data class DnsQuery(
     override fun equals(other: Any?): Boolean = this === other
     override fun hashCode(): Int = System.identityHashCode(this)
 }
+
+/**
+ * Lightweight summary of a DNS response used for cache decisions.
+ * [minTtlSeconds] is the smallest TTL across answer records (0 if there
+ * are none); [truncated] mirrors the TC header bit.
+ */
+internal data class AnswerInfo(
+    val rcode: Int,
+    val minTtlSeconds: Long,
+    val truncated: Boolean,
+)

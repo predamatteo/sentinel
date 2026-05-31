@@ -100,4 +100,99 @@ class DnsPacketParserTest {
         // question end (header 12 + qname 17 + 4 type/class = 33).
         assertEquals(payload.size, response.size)
     }
+
+    @Test
+    fun rewriteTransactionIdReplacesOnlyFirstTwoBytes() {
+        val original = byteArrayOf(0x12, 0x34, 0x05, 0x06, 0x07, 0x08)
+        val rewritten = DnsPacketParser.rewriteTransactionId(original, 0xABCD)
+        // First two bytes are the new id, big-endian.
+        assertEquals(0xAB.toByte(), rewritten[0])
+        assertEquals(0xCD.toByte(), rewritten[1])
+        // Everything else is untouched.
+        assertEquals(0x05.toByte(), rewritten[2])
+        assertEquals(0x06.toByte(), rewritten[3])
+        assertEquals(0x07.toByte(), rewritten[4])
+        assertEquals(0x08.toByte(), rewritten[5])
+        // Original is not mutated (template stays reusable).
+        assertEquals(0x12.toByte(), original[0])
+        assertEquals(0x34.toByte(), original[1])
+    }
+
+    @Test
+    fun parseAnswerExtractsMinTtlAcrossRecords() {
+        // 1 question (a.com A IN) + 2 answer records (compressed names),
+        // TTLs 300 and 60. Min TTL must be 60, rcode 0, not truncated.
+        val payload = byteArrayOf(
+            0xAA.toByte(), 0xBB.toByte(), // txid
+            0x81.toByte(), 0x80.toByte(), // QR=1 RD=1 RA=1 rcode=0
+            0x00, 0x01,                   // qd=1
+            0x00, 0x02,                   // an=2
+            0x00, 0x00,                   // ns=0
+            0x00, 0x00,                   // ar=0
+            // question name "a.com" @offset 12
+            0x01, 'a'.code.toByte(),
+            0x03, 'c'.code.toByte(), 'o'.code.toByte(), 'm'.code.toByte(),
+            0x00,
+            0x00, 0x01,                   // qtype A
+            0x00, 0x01,                   // qclass IN
+            // answer 1: name ptr -> 12, A IN, ttl=300, rdlen=4
+            0xC0.toByte(), 0x0C,
+            0x00, 0x01, 0x00, 0x01,
+            0x00, 0x00, 0x01, 0x2C,       // ttl 300
+            0x00, 0x04,
+            0x01, 0x02, 0x03, 0x04,
+            // answer 2: name ptr -> 12, A IN, ttl=60, rdlen=4
+            0xC0.toByte(), 0x0C,
+            0x00, 0x01, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x3C,       // ttl 60
+            0x00, 0x04,
+            0x05, 0x06, 0x07, 0x08,
+        )
+        val info = DnsPacketParser.parseAnswerTtlAndRcode(payload)
+        assertNotNull(info)
+        assertEquals(0, info!!.rcode)
+        assertEquals(60L, info.minTtlSeconds)
+        assertEquals(false, info.truncated)
+    }
+
+    @Test
+    fun parseAnswerReportsNxdomainWithNoAnswers() {
+        val payload = byteArrayOf(
+            0x00, 0x01,
+            0x81.toByte(), 0x83.toByte(), // QR=1 RD=1 RA=1 rcode=3 (NXDOMAIN)
+            0x00, 0x01,                   // qd=1
+            0x00, 0x00,                   // an=0
+            0x00, 0x00,
+            0x00, 0x00,
+            0x01, 'a'.code.toByte(),
+            0x03, 'c'.code.toByte(), 'o'.code.toByte(), 'm'.code.toByte(),
+            0x00,
+            0x00, 0x01,
+            0x00, 0x01,
+        )
+        val info = DnsPacketParser.parseAnswerTtlAndRcode(payload)
+        assertNotNull(info)
+        assertEquals(3, info!!.rcode)
+        assertEquals(0L, info.minTtlSeconds)
+    }
+
+    @Test
+    fun parseAnswerDetectsTruncationBit() {
+        val payload = byteArrayOf(
+            0x00, 0x01,
+            0x82.toByte(), 0x80.toByte(), // QR=1 TC=1 rcode=0
+            0x00, 0x01,
+            0x00, 0x00,
+            0x00, 0x00,
+            0x00, 0x00,
+            0x01, 'a'.code.toByte(),
+            0x03, 'c'.code.toByte(), 'o'.code.toByte(), 'm'.code.toByte(),
+            0x00,
+            0x00, 0x01,
+            0x00, 0x01,
+        )
+        val info = DnsPacketParser.parseAnswerTtlAndRcode(payload)
+        assertNotNull(info)
+        assertEquals(true, info!!.truncated)
+    }
 }
