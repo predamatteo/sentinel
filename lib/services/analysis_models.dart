@@ -12,6 +12,10 @@ extension VerdictParsing on Verdict {
         return Verdict.suspicious;
       case 'MALICIOUS':
         return Verdict.malicious;
+      case 'UNAVAILABLE':
+        // A check that could not run/complete. Non-blocking: rendered as a
+        // neutral "couldn't verify" state, not a threat.
+        return Verdict.unknown;
       default:
         return Verdict.unknown;
     }
@@ -25,6 +29,7 @@ class AnalysisResult {
     required this.reasons,
     required this.sources,
     required this.analyzedAt,
+    this.notes = const [],
   });
 
   final String url;
@@ -33,9 +38,14 @@ class AnalysisResult {
   final List<String> sources;
   final DateTime analyzedAt;
 
+  /// Non-blocking informational notes (e.g. "online check could not
+  /// complete"). Distinct from [reasons], which carry real threat evidence.
+  final List<String> notes;
+
   factory AnalysisResult.fromMap(Map<dynamic, dynamic> raw) {
     final reasons = (raw['reasons'] as List?)?.cast<String>() ?? const [];
     final sources = (raw['sources'] as List?)?.cast<String>() ?? const [];
+    final notes = (raw['notes'] as List?)?.cast<String>() ?? const [];
     final analyzedAtMs =
         (raw['analyzedAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch;
     return AnalysisResult(
@@ -44,6 +54,7 @@ class AnalysisResult {
       reasons: reasons,
       sources: sources,
       analyzedAt: DateTime.fromMillisecondsSinceEpoch(analyzedAtMs),
+      notes: notes,
     );
   }
 }

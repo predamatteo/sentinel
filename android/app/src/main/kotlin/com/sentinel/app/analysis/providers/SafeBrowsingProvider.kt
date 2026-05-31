@@ -19,7 +19,7 @@ import java.security.MessageDigest
  *
  * The API key is injected via BuildConfig.SAFE_BROWSING_API_KEY which is in
  * turn populated from `local.properties` at build time. When the key is
- * missing or empty the provider does NOT fail: it returns a SUSPICIOUS
+ * missing or empty the provider does NOT alarm: it returns an UNAVAILABLE
  * outcome explaining that the online check could not run, so the user can
  * still make an informed decision.
  *
@@ -50,10 +50,11 @@ class SafeBrowsingProvider(
 
     override suspend fun check(url: String): ProviderOutcome = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
-            return@withContext ProviderOutcome(
+            // Unconfigured provider is a config gap, not a threat signal:
+            // fail-open as UNAVAILABLE so it never escalates a clean URL.
+            return@withContext ProviderOutcome.unavailable(
                 source = sourceName,
-                verdict = Verdict.SUSPICIOUS,
-                reasons = listOf("Safe Browsing API non configurata"),
+                reason = "Safe Browsing API non configurata",
             )
         }
 
@@ -80,20 +81,22 @@ class SafeBrowsingProvider(
             if (responseCode !in 200..299) {
                 val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }
                     ?: "HTTP $responseCode"
-                return@withContext ProviderOutcome(
+                // Service-availability problem (429 quota, 403 key restriction,
+                // 5xx outage) — not a threat verdict. Fail-open.
+                return@withContext ProviderOutcome.unavailable(
                     source = sourceName,
-                    verdict = Verdict.SUSPICIOUS,
-                    reasons = listOf("Verifica Safe Browsing fallita (HTTP $responseCode): $errorBody"),
+                    reason = "Verifica Safe Browsing non disponibile (HTTP $responseCode): $errorBody",
                 )
             }
 
             val body = connection.inputStream.bufferedReader().use { it.readText() }
             parseResponse(body)
         } catch (error: Exception) {
-            ProviderOutcome(
+            // Transport error (offline, DNS, TLS, timeout) — about the
+            // network, not the URL. Fail-open as UNAVAILABLE.
+            ProviderOutcome.unavailable(
                 source = sourceName,
-                verdict = Verdict.SUSPICIOUS,
-                reasons = listOf("Verifica Safe Browsing non disponibile: ${error.message ?: error.javaClass.simpleName}"),
+                reason = "Verifica Safe Browsing non disponibile: ${error.message ?: error.javaClass.simpleName}",
             )
         } finally {
             connection.disconnect()
@@ -123,7 +126,8 @@ class SafeBrowsingProvider(
             .toString()
     }
 
-    private fun parseResponse(body: String): ProviderOutcome {
+    @androidx.annotation.VisibleForTesting
+    internal fun parseResponse(body: String): ProviderOutcome {
         if (body.isBlank() || body.trim() == "{}") {
             return ProviderOutcome(
                 source = sourceName,

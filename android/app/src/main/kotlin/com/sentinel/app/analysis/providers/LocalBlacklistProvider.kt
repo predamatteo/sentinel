@@ -31,10 +31,11 @@ class LocalBlacklistProvider(
     override suspend fun check(url: String): ProviderOutcome = withContext(Dispatchers.IO) {
         val host = runCatching { URI(url).host?.lowercase() }.getOrNull()
         if (host.isNullOrBlank()) {
-            return@withContext ProviderOutcome(
+            // A URL this provider cannot parse is not evidence of a threat;
+            // surface it as a non-blocking UNAVAILABLE rather than escalating.
+            return@withContext ProviderOutcome.unavailable(
                 source = sourceName,
-                verdict = Verdict.SUSPICIOUS,
-                reasons = listOf("URL non valido"),
+                reason = "URL non analizzabile dalla blacklist locale",
             )
         }
         val list = loadBlacklist()
