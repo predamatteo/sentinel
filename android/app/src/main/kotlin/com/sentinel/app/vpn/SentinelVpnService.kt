@@ -261,6 +261,16 @@ class SentinelVpnService : VpnService() {
         buildReply: (ByteArray) -> ByteArray,
     ) {
         VpnStats.recordQuery()
+        if (query.qdCount != 1) {
+            // buildNxdomainResponse can only faithfully synthesize a single-
+            // question reply (it hard-codes QDCOUNT=1 and echoes question #1
+            // only). Multi-question queries are vanishingly rare; forward
+            // them upstream intact rather than risk a count-mismatched
+            // NXDOMAIN. The sinkhole black-hole guarantee for parse failures
+            // is unchanged (that path is handled by the family handlers).
+            dnsForwarder?.forward(query, dnsPayload, isIpv6, buildReply)
+            return
+        }
         val verdict = blocklist.lookup(query.qName)
         if (verdict !is MatchResult.Allowed) {
             val category = verdict.category ?: return

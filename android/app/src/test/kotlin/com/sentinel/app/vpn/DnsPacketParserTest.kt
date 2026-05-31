@@ -195,4 +195,48 @@ class DnsPacketParserTest {
         assertNotNull(info)
         assertEquals(true, info!!.truncated)
     }
+
+    @Test
+    fun rejectsForwardCompressionPointer() {
+        // Question name begins with a pointer to offset 32, which is at/after
+        // the pointer's own position (not strictly backward) -> reject.
+        val payload = byteArrayOf(
+            0x12, 0x34, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0xC0.toByte(), 0x20,
+        )
+        assertNull(DnsPacketParser.parseQuery(payload))
+    }
+
+    @Test
+    fun rejectsCompressionPointerIntoHeader() {
+        // Pointer targets offset 6, inside the 12-byte fixed header -> reject.
+        val payload = byteArrayOf(
+            0x12, 0x34, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0xC0.toByte(), 0x06,
+        )
+        assertNull(DnsPacketParser.parseQuery(payload))
+    }
+
+    @Test
+    fun exposesQdCountForMultiQuestion() {
+        // qd=2: only the first question is parsed, but qdCount is exposed so
+        // the service can route multi-question queries upstream.
+        val payload = byteArrayOf(
+            0x12, 0x34, 0x01, 0x00,
+            0x00, 0x02, // qd = 2
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            // q1: a.com A IN
+            0x01, 'a'.code.toByte(),
+            0x03, 'c'.code.toByte(), 'o'.code.toByte(), 'm'.code.toByte(),
+            0x00, 0x00, 0x01, 0x00, 0x01,
+            // q2: b.com A IN
+            0x01, 'b'.code.toByte(),
+            0x03, 'c'.code.toByte(), 'o'.code.toByte(), 'm'.code.toByte(),
+            0x00, 0x00, 0x01, 0x00, 0x01,
+        )
+        val query = DnsPacketParser.parseQuery(payload)
+        assertNotNull(query)
+        assertEquals(2, query!!.qdCount)
+        assertEquals("a.com", query.qName)
+    }
 }

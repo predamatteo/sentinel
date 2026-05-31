@@ -12,9 +12,10 @@ import java.nio.ByteBuffer
  *
  * We deliberately ignore other sections (Answer, Authority, Additional)
  * on queries since standard clients put nothing useful there for our
- * purposes. EDNS0 OPT records in the Additional section are tolerated:
- * we copy the original payload verbatim into the response so the EDNS0
- * advertisement is preserved.
+ * purposes. A synthesised NXDOMAIN drops the Additional section and sets
+ * ARCOUNT=0; omitting the EDNS0 OPT record on a server-generated response
+ * is permitted by RFC 6891, and Sentinel only ever synthesises tiny
+ * NXDOMAIN replies, so this is safe.
  */
 internal object DnsPacketParser {
 
@@ -56,6 +57,7 @@ internal object DnsPacketParser {
         return DnsQuery(
             transactionId = transactionId,
             flags = flags,
+            qdCount = qdCount,
             qName = nameBuilder.toString().lowercase().trimEnd('.'),
             qType = type,
             qClass = cls,
@@ -195,6 +197,12 @@ internal object DnsPacketParser {
             if ((len and 0xC0) == 0xC0) {
                 if (i + 1 >= data.size) return null
                 val pointer = ((len and 0x3F) shl 8) or (data[i + 1].toInt() and 0xFF)
+                // RFC 1035 4.1.4: a pointer references a PRIOR occurrence.
+                // Reject pointers into the 12-byte fixed header and any that
+                // do not point strictly backward — otherwise a crafted name
+                // could form a forward chain / self-loop or be mis-decoded to
+                // an unintended domain (wrong block or missed block).
+                if (pointer < HEADER_LENGTH || pointer >= i) return null
                 if (!jumped) firstReturn = i + 2
                 i = pointer
                 jumped = true
@@ -214,12 +222,14 @@ internal object DnsPacketParser {
 
 /**
  * A parsed DNS query. [raw] holds the original payload so the responder
- * can preserve label compression and any EDNS0 advertisements when
- * synthesising a reply.
+ * can echo the question section verbatim (preserving label compression
+ * within the question). EDNS0/Additional records are intentionally not
+ * echoed on a synthetic NXDOMAIN.
  */
 internal data class DnsQuery(
     val transactionId: Int,
     val flags: Int,
+    val qdCount: Int,
     val qName: String,
     val qType: Int,
     val qClass: Int,
