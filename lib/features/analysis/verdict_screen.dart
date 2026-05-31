@@ -10,7 +10,10 @@ import '../../services/analysis_service.dart';
 /// Single verdict screen that renders one of three visual states based on
 /// [AnalysisResult.verdict]:
 ///   - SAFE: green, auto-forwards to Chrome after a short countdown
-///   - SUSPICIOUS: amber, requires explicit user choice, no auto-forward
+///   - SUSPICIOUS / UNKNOWN: neutral/info, primary action is "Open"; the
+///     user can proceed directly (no malware confirm dialog) because these
+///     verdicts carry no real threat evidence — at worst a check could not
+///     complete
 ///   - MALICIOUS: red, "Procedi comunque" guarded by a confirm dialog
 class VerdictScreen extends StatefulWidget {
   const VerdictScreen({
@@ -115,21 +118,24 @@ class _VerdictScreenState extends State<VerdictScreen> {
           onCancel: _cancel,
         );
       case Verdict.malicious:
+        // Only a confirmed-malicious verdict keeps the critical red styling
+        // and the malware-worded confirm dialog.
         return _DangerVerdictBody(
           result: widget.result,
           proceeding: _proceeding,
           onProceed: () => _proceed(askConfirm: true),
           onCancel: _cancel,
-          isCritical: true,
         );
       case Verdict.suspicious:
       case Verdict.unknown:
-        return _DangerVerdictBody(
+        // Neutral/info state: no real threat evidence (UNKNOWN means a check
+        // could not complete). The primary action proceeds directly, with no
+        // malware confirm dialog.
+        return _NeutralVerdictBody(
           result: widget.result,
           proceeding: _proceeding,
-          onProceed: () => _proceed(askConfirm: true),
+          onProceed: () => _proceed(askConfirm: false),
           onCancel: _cancel,
-          isCritical: false,
         );
     }
   }
@@ -223,36 +229,132 @@ class _SafeVerdictBody extends StatelessWidget {
   }
 }
 
-class _DangerVerdictBody extends StatelessWidget {
-  const _DangerVerdictBody({
+/// Neutral / info verdict body for [Verdict.suspicious] and
+/// [Verdict.unknown]. These verdicts carry no real threat evidence — at
+/// worst a check could not complete — so the screen is deliberately
+/// reassuring: a neutral info palette (theme [ColorScheme], never the
+/// danger/warning reds), an info icon, and a PRIMARY "Open" action that
+/// proceeds straight to Chrome with no malware confirm dialog. The "Go
+/// back" action is demoted to a secondary outlined button.
+class _NeutralVerdictBody extends StatelessWidget {
+  const _NeutralVerdictBody({
     required this.result,
     required this.proceeding,
     required this.onProceed,
     required this.onCancel,
-    required this.isCritical,
   });
 
   final AnalysisResult result;
   final bool proceeding;
   final VoidCallback onProceed;
   final VoidCallback onCancel;
-  final bool isCritical;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final mainColor = isCritical ? SentinelColors.danger : SentinelColors.warning;
-    final containerColor = isCritical
-        ? SentinelColors.dangerContainer
-        : SentinelColors.warningContainer;
-    final icon = isCritical ? Icons.gpp_bad : Icons.shield_moon;
-    final title = isCritical
-        ? l10n.verdictDangerTitle
-        : l10n.verdictWarningTitle;
-    final subtitle = isCritical
-        ? l10n.verdictDangerSubtitle
-        : l10n.verdictWarningSubtitle;
+    final accent = theme.colorScheme.primary;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 12),
+              _VerdictBadge(
+                icon: Icons.info_outline,
+                color: accent,
+                containerColor: theme.colorScheme.secondaryContainer,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                l10n.verdictUnverifiedTitle,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.verdictUnverifiedSubtitle,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              _UrlCard(url: result.url),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Non-blocking informational notes (e.g. "online check
+                      // could not complete"), shown with a neutral accent
+                      // rather than the red error styling used for real
+                      // threat reasons.
+                      if (result.notes.isNotEmpty)
+                        _ReasonsCard(
+                          title: l10n.verdictUnverifiedNotesTitle,
+                          reasons: result.notes,
+                          accentColor: accent,
+                        ),
+                      if (result.sources.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _SourcesCard(sources: result.sources),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: proceeding ? null : onProceed,
+                icon: const Icon(Icons.open_in_new),
+                label: Text(l10n.verdictOpenAnyway),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: proceeding ? null : onCancel,
+                child: Text(l10n.verdictDangerBack),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Critical red verdict body. Reserved for [Verdict.malicious] only:
+/// confirmed-dangerous sites whose "Proceed anyway" is guarded by a
+/// malware-worded confirm dialog.
+class _DangerVerdictBody extends StatelessWidget {
+  const _DangerVerdictBody({
+    required this.result,
+    required this.proceeding,
+    required this.onProceed,
+    required this.onCancel,
+  });
+
+  final AnalysisResult result;
+  final bool proceeding;
+  final VoidCallback onProceed;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    const mainColor = SentinelColors.danger;
+    const containerColor = SentinelColors.dangerContainer;
+    const icon = Icons.gpp_bad;
+    final title = l10n.verdictDangerTitle;
+    final subtitle = l10n.verdictDangerSubtitle;
 
     return Scaffold(
       body: SafeArea(

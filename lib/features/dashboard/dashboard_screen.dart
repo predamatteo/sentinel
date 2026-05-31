@@ -8,6 +8,7 @@ import '../../l10n/generated/app_localizations.dart';
 import '../../services/accessibility_service.dart';
 import '../../services/analysis_service.dart';
 import '../../services/vpn_service.dart';
+import '../../services/whitelist_service.dart';
 import '../settings/settings_screen.dart';
 
 /// Sentinel home dashboard. Sits alongside (and effectively replaces)
@@ -25,11 +26,13 @@ class DashboardScreen extends StatefulWidget {
     required this.analysisService,
     required this.vpnService,
     this.accessibilityService,
+    this.whitelistService,
   });
 
   final AnalysisService analysisService;
   final VpnService vpnService;
   final AccessibilityService? accessibilityService;
+  final WhitelistService? whitelistService;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -39,6 +42,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
   late final AccessibilityService _accessibility =
       widget.accessibilityService ?? AccessibilityService();
+  late final WhitelistService _whitelist =
+      widget.whitelistService ?? WhitelistService();
 
   bool _vpnRunning = false;
   bool _vpnBusy = false;
@@ -250,6 +255,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           analysisService: widget.analysisService,
           vpnService: widget.vpnService,
           accessibilityService: _accessibility,
+          whitelistService: _whitelist,
         ),
       ),
     );
@@ -275,6 +281,31 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _openPrivateDnsSettings() async {
     await widget.vpnService.openPrivateDnsSettings();
+  }
+
+  /// Tapping a recent-block entry offers to whitelist its domain so a
+  /// falsely-blocked site recovers in one tap. Mirrors the settings flow:
+  /// persist via [WhitelistService.add] then push the full updated list to
+  /// the running tunnel with [VpnService.setWhitelist].
+  Future<void> _allowDomain(String domain) async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => _AllowDomainSheet(domain: domain),
+    );
+    if (confirmed != true || !mounted) return;
+    final didAdd = await _whitelist.add(domain);
+    if (!mounted) return;
+    if (!didAdd) {
+      _showSnack(l10n.dashboardAllowDomainAlready(domain));
+      return;
+    }
+    final all = await _whitelist.getAll();
+    if (!mounted) return;
+    await widget.vpnService.setWhitelist(all);
+    if (!mounted) return;
+    _showSnack(l10n.dashboardAllowDomainAdded(domain));
   }
 
   @override
@@ -374,7 +405,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               ),
               const SizedBox(height: 8),
-              _RecentBlocksList(events: _stats.recentBlocks),
+              _RecentBlocksList(
+                events: _stats.recentBlocks,
+                onAllowDomain: _allowDomain,
+              ),
               const SizedBox(height: 12),
               _UpdatedAtFooter(timestamp: _lastUpdated),
               const SizedBox(height: 24),
@@ -573,9 +607,13 @@ class _StatTile extends StatelessWidget {
 }
 
 class _RecentBlocksList extends StatelessWidget {
-  const _RecentBlocksList({required this.events});
+  const _RecentBlocksList({
+    required this.events,
+    required this.onAllowDomain,
+  });
 
   final List<VpnBlockEvent> events;
+  final ValueChanged<String> onAllowDomain;
 
   @override
   Widget build(BuildContext context) {
@@ -599,7 +637,10 @@ class _RecentBlocksList extends StatelessWidget {
       child: Column(
         children: [
           for (final (i, e) in shown.indexed) ...[
-            _BlockEventTile(event: e),
+            _BlockEventTile(
+              event: e,
+              onTap: () => onAllowDomain(e.domain),
+            ),
             if (i < shown.length - 1)
               const Divider(height: 1, indent: 16, endIndent: 16),
           ],
@@ -610,9 +651,10 @@ class _RecentBlocksList extends StatelessWidget {
 }
 
 class _BlockEventTile extends StatelessWidget {
-  const _BlockEventTile({required this.event});
+  const _BlockEventTile({required this.event, required this.onTap});
 
   final VpnBlockEvent event;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -625,6 +667,7 @@ class _BlockEventTile extends StatelessWidget {
         isThreat ? l10n.blockCategoryThreat : l10n.blockCategoryAds;
     return ListTile(
       dense: true,
+      onTap: onTap,
       leading: Icon(
         isThreat ? Icons.gpp_bad : Icons.block,
         color: chipColor,
@@ -649,6 +692,11 @@ class _BlockEventTile extends StatelessWidget {
           ),
         ],
       ),
+      // Affordance hinting the row is actionable (opens the allow sheet).
+      trailing: Icon(
+        Icons.add_circle_outline,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
     );
   }
 
@@ -656,6 +704,64 @@ class _BlockEventTile extends StatelessWidget {
     final hh = t.hour.toString().padLeft(2, '0');
     final mm = t.minute.toString().padLeft(2, '0');
     return '$hh:$mm';
+  }
+}
+
+/// Confirmation sheet shown when the user taps a recent-block entry. Pops
+/// `true` when the user confirms allowing the domain.
+class _AllowDomainSheet extends StatelessWidget {
+  const _AllowDomainSheet({required this.domain});
+
+  final String domain;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.check_circle_outline,
+                    color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    l10n.dashboardAllowDomainTitle,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.dashboardAllowDomainBody(domain),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).pop(true),
+              icon: const Icon(Icons.add),
+              label: Text(l10n.dashboardAllowDomainConfirm),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.dashboardAllowDomainCancel),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

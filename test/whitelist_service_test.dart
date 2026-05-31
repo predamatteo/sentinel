@@ -27,4 +27,42 @@ void main() {
       expect(WhitelistService.isValidDomain(' EXAMPLE.COM '), isTrue);
     });
   });
+
+  group('WhitelistService.normaliseInput', () {
+    test('reduces a full URL to the bare registrable host', () {
+      expect(WhitelistService.normaliseInput('https://www.shop.com/cart'),
+          'shop.com');
+      expect(WhitelistService.normaliseInput('http://example.com'),
+          'example.com');
+      expect(
+          WhitelistService.normaliseInput(
+              'https://www.shop.com/cart?id=1#section'),
+          'shop.com');
+    });
+
+    test('strips scheme, port, userinfo and leading www', () {
+      expect(WhitelistService.normaliseInput('http://example.com:8080'),
+          'example.com');
+      expect(WhitelistService.normaliseInput('https://user:pass@example.com/x'),
+          'example.com');
+      expect(WhitelistService.normaliseInput('www.example.com'), 'example.com');
+    });
+
+    test('accepts a bare host unchanged (besides case/whitespace)', () {
+      expect(WhitelistService.normaliseInput(' EXAMPLE.COM '), 'example.com');
+      expect(WhitelistService.normaliseInput('sub.example.com'),
+          'sub.example.com');
+    });
+
+    test('does not over-strip a www in the middle of a host', () {
+      expect(WhitelistService.normaliseInput('mywww.example.com'),
+          'mywww.example.com');
+    });
+
+    test('returns null for input with no usable host', () {
+      expect(WhitelistService.normaliseInput(''), isNull);
+      expect(WhitelistService.normaliseInput('https://'), isNull);
+      expect(WhitelistService.normaliseInput('localhost'), isNull);
+    });
+  });
 }

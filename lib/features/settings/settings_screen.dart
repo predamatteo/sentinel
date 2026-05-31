@@ -240,7 +240,9 @@ class _SettingsScreenState extends State<SettingsScreen>
             FilledButton(
               onPressed: () {
                 final raw = controller.text.trim();
-                if (!WhitelistService.isValidDomain(raw)) {
+                // URL-tolerant: accept a pasted full URL by normalising it to
+                // the bare host. Only reject input that has no usable host.
+                if (WhitelistService.normaliseInput(raw) == null) {
                   setStateDialog(() => error = l10n.settingsWhitelistInvalid);
                   return;
                 }
@@ -254,12 +256,21 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
     controller.dispose();
     if (added == null) return;
+    final domain = WhitelistService.normaliseInput(added) ?? added;
     final didAdd = await _whitelist.add(added);
-    if (!didAdd) return;
+    if (!mounted) return;
+    if (!didAdd) {
+      // add() returns false only when the (normalised) domain is already
+      // present, since the input was validated before reaching here.
+      _showSnack(l10n.settingsWhitelistAlready(domain));
+      return;
+    }
     final all = await _whitelist.getAll();
     if (!mounted) return;
     setState(() => _whitelistDomains = all);
     await widget.vpnService.setWhitelist(_whitelistDomains);
+    if (!mounted) return;
+    _showSnack(l10n.settingsWhitelistAdded(domain));
   }
 
   Future<void> _removeWhitelist(String domain) async {

@@ -55,6 +55,23 @@
   "verdictWarningTitle": "Verifica incompleta",
   "verdictWarningSubtitle": "Non è stato possibile completare tutti i controlli",
 
+  "verdictUnverifiedTitle": "Non siamo riusciti a verificare del tutto il sito",
+  "@verdictUnverifiedTitle": {
+    "description": "Neutral verdict title for SUSPICIOUS/UNKNOWN: a check could not complete or was inconclusive. Deliberately reassuring, not alarming."
+  },
+  "verdictUnverifiedSubtitle": "Probabilmente è sicuro: puoi aprirlo.",
+  "@verdictUnverifiedSubtitle": {
+    "description": "Neutral verdict subtitle reassuring the user that the site is most likely fine and can be opened."
+  },
+  "verdictUnverifiedNotesTitle": "Dettagli",
+  "@verdictUnverifiedNotesTitle": {
+    "description": "Section title above the informational, non-blocking notes on the neutral verdict screen."
+  },
+  "verdictOpenAnyway": "Apri",
+  "@verdictOpenAnyway": {
+    "description": "Primary action on the neutral verdict screen: proceed and open the site."
+  },
+
   "settingsTitle": "Impostazioni",
   "settingsAbout": "Informazioni",
   "settingsVersion": "Versione",
@@ -215,5 +232,54 @@
   "dashboardStrictPrivateDnsCta": "Impostazioni DNS privato",
   "@dashboardStrictPrivateDnsCta": {
     "description": "Button on the strict Private DNS advisory that opens the system Private DNS settings."
+  },
+
+  "dashboardAllowDomainTitle": "Consenti questo dominio?",
+  "@dashboardAllowDomainTitle": {
+    "description": "Title of the confirmation sheet shown when the user taps a recent block entry to whitelist it."
+  },
+  "dashboardAllowDomainBody": "{domain} verrà aggiunto ai domini consentiti e non sarà più bloccato.",
+  "@dashboardAllowDomainBody": {
+    "description": "Body of the allow-domain confirmation sheet.",
+    "placeholders": {
+      "domain": { "type": "String" }
+    }
+  },
+  "dashboardAllowDomainConfirm": "Consenti questo dominio",
+  "@dashboardAllowDomainConfirm": {
+    "description": "Confirm action on the allow-domain sheet that whitelists the tapped block entry."
+  },
+  "dashboardAllowDomainCancel": "Annulla",
+  "@dashboardAllowDomainCancel": {
+    "description": "Cancel action on the allow-domain confirmation sheet."
+  },
+  "dashboardAllowDomainAdded": "{domain} aggiunto ai domini consentiti.",
+  "@dashboardAllowDomainAdded": {
+    "description": "Snackbar shown after a domain is successfully added to the whitelist from the dashboard.",
+    "placeholders": {
+      "domain": { "type": "String" }
+    }
+  },
+  "dashboardAllowDomainAlready": "{domain} è già consentito.",
+  "@dashboardAllowDomainAlready": {
+    "description": "Snackbar shown when the tapped domain was already in the whitelist.",
+    "placeholders": {
+      "domain": { "type": "String" }
+    }
+  },
+
+  "settingsWhitelistAdded": "{domain} aggiunto ai domini consentiti.",
+  "@settingsWhitelistAdded": {
+    "description": "Snackbar confirming a domain was added to the whitelist from Settings.",
+    "placeholders": {
+      "domain": { "type": "String" }
+    }
+  },
+  "settingsWhitelistAlready": "{domain} è già consentito.",
+  "@settingsWhitelistAlready": {
+    "description": "Snackbar shown when the entered domain was already present in the whitelist.",
+    "placeholders": {
+      "domain": { "type": "String" }
+    }
   }
 }

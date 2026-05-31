@@ -34,12 +34,25 @@ class _AnalyzingScreenState extends State<AnalyzingScreen> {
     try {
       final result = await widget.service.analyze(widget.url);
       if (!mounted || _cancelled) return;
-      // Fast path for SAFE verdicts: forward straight to Chrome without
-      // showing an intermediate "everything OK" screen. Users only need
-      // to see Sentinel UI when something requires their attention.
-      if (result.verdict == Verdict.safe) {
+      // Fast path for SAFE and UNKNOWN verdicts: forward straight to Chrome
+      // without showing an intermediate screen. SAFE means "everything OK";
+      // UNKNOWN means a check simply could not complete (most likely fine),
+      // so interrupting the user with a screen for a verification that never
+      // finished only adds friction. Only SUSPICIOUS/MALICIOUS — which carry
+      // real evidence — warrant the verdict screen.
+      if (result.verdict == Verdict.safe || result.verdict == Verdict.unknown) {
         final launched = await widget.service.proceedToChrome(widget.url);
-        if (!launched && mounted) {
+        if (!mounted) return;
+        if (launched) {
+          // Surface any non-blocking notes (e.g. "online check could not
+          // complete") via a brief SnackBar so the auto-forward stays
+          // transparent without blocking the user.
+          if (result.notes.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(result.notes.first)),
+            );
+          }
+        } else {
           final l10n = AppLocalizations.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(l10n.errorNoBrowser)),
