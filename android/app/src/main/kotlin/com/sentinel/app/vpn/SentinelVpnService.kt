@@ -93,6 +93,12 @@ class SentinelVpnService : VpnService() {
             val builder = Builder()
                 .setSession(SESSION_NAME)
                 .addAddress(LOCAL_TUN_ADDRESS, 32)
+                // IPv6 counterpart: without it, AAAA / IPv6 DNS on a
+                // dual-stack network bypasses the filter entirely while the
+                // dashboard still shows "protected". We advertise a ULA
+                // sinkhole and route ONLY that /128 — never ::/0 — so IPv6
+                // non-DNS traffic still uses the system default network.
+                .addAddress(LOCAL_TUN_ADDRESS6, 128)
                 // Route only the sinkhole DNS IP through the tunnel.
                 // Combined with addDnsServer below, this makes Android
                 // send every DNS query to us (because we advertise the
@@ -103,7 +109,9 @@ class SentinelVpnService : VpnService() {
                 // require a full userspace IP forwarder, which is not
                 // what we want.
                 .addRoute(SINKHOLE_DNS, 32)
+                .addRoute(SINKHOLE_DNS6, 128)
                 .addDnsServer(SINKHOLE_DNS)
+                .addDnsServer(SINKHOLE_DNS6)
                 .setBlocking(true)
                 .setMtu(1500)
             // Exclude our own package from the VPN so our upstream
@@ -174,14 +182,21 @@ class SentinelVpnService : VpnService() {
     }
 
     /**
-     * Parse one packet off the (reused) read buffer and act on it WITHOUT
-     * blocking: NXDOMAIN replies and cache hits are enqueued to the tun
-     * writer, allowed misses are dispatched to the async forwarder, and
-     * everything else is passed through. The read buffer is reused by the
-     * next read, so any bytes that outlive this call are copied first.
+     * Branch on the IP version nibble and dispatch to the family-specific
+     * handler. Everything that is not an IPv4/IPv6 DNS query we recognise
+     * is passed through untouched.
      */
     private fun handlePacket(rawBuffer: ByteArray, length: Int) {
         val writer = tunWriter ?: return
+        if (length < 1) return
+        when ((rawBuffer[0].toInt() and 0xF0) ushr 4) {
+            4 -> handleIpv4(writer, rawBuffer, length)
+            6 -> handleIpv6(writer, rawBuffer, length)
+            else -> passthrough(writer, rawBuffer, length)
+        }
+    }
+
+    private fun handleIpv4(writer: TunWriter, rawBuffer: ByteArray, length: Int) {
         val view = ByteBuffer.wrap(rawBuffer, 0, length).asReadOnlyBuffer()
         val ip = IpPacketParser.parseIpv4(view) ?: return passthrough(writer, rawBuffer, length)
         if (ip.protocol != IpPacketParser.PROTOCOL_UDP) {
@@ -191,7 +206,6 @@ class SentinelVpnService : VpnService() {
         if (udp.destPort != DNS_PORT) {
             return passthrough(writer, rawBuffer, length)
         }
-
         val payloadStart = ip.headerStart + ip.headerLength + 8
         val payloadEnd = ip.headerStart + ip.totalLength
         if (payloadEnd > length || payloadStart >= payloadEnd) {
@@ -200,14 +214,58 @@ class SentinelVpnService : VpnService() {
         val dnsPayload = rawBuffer.copyOfRange(payloadStart, payloadEnd)
         val query = DnsPacketParser.parseQuery(dnsPayload)
             ?: return passthrough(writer, rawBuffer, length)
-        VpnStats.recordQuery()
+        dispatchDns(writer, query, dnsPayload, isIpv6 = false) { answer ->
+            IpPacketParser.buildIpv4UdpReply(ip, udp, answer)
+        }
+    }
 
+    private fun handleIpv6(writer: TunWriter, rawBuffer: ByteArray, length: Int) {
+        val view = ByteBuffer.wrap(rawBuffer, 0, length).asReadOnlyBuffer()
+        val ip = IpPacketParser.parseIpv6(view) ?: return passthrough(writer, rawBuffer, length)
+        if (ip.nextHeader != IpPacketParser.PROTOCOL_UDP) {
+            return passthrough(writer, rawBuffer, length)
+        }
+        val udp = IpPacketParser.parseUdp(view) ?: return passthrough(writer, rawBuffer, length)
+        if (udp.destPort != DNS_PORT) {
+            return passthrough(writer, rawBuffer, length)
+        }
+        // IPv6 has a fixed 40-byte header; payloadLength covers UDP header +
+        // data. (Extension headers are not parsed in the MVP — parseIpv6
+        // returns the next-header value and we only proceed for UDP.)
+        val payloadStart = ip.headerStart + IpPacketParser.IPV6_HEADER_LENGTH + 8
+        val payloadEnd = ip.headerStart + IpPacketParser.IPV6_HEADER_LENGTH + ip.payloadLength
+        if (payloadEnd > length || payloadStart >= payloadEnd) {
+            return passthrough(writer, rawBuffer, length)
+        }
+        val dnsPayload = rawBuffer.copyOfRange(payloadStart, payloadEnd)
+        val query = DnsPacketParser.parseQuery(dnsPayload)
+            ?: return passthrough(writer, rawBuffer, length)
+        dispatchDns(writer, query, dnsPayload, isIpv6 = true) { answer ->
+            IpPacketParser.buildIpv6UdpReply(ip, udp, answer)
+        }
+    }
+
+    /**
+     * Family-agnostic block / cache / forward decision for a parsed DNS
+     * query. [buildReply] wraps a DNS answer payload into the matching
+     * IPv4 or IPv6 UDP datagram. The read buffer is reused by the next
+     * read, so [dnsPayload] and anything captured by [buildReply] must
+     * already be copies (they are: dnsPayload is copyOfRange, and the
+     * parsed headers hold freshly allocated address arrays).
+     */
+    private fun dispatchDns(
+        writer: TunWriter,
+        query: DnsQuery,
+        dnsPayload: ByteArray,
+        isIpv6: Boolean,
+        buildReply: (ByteArray) -> ByteArray,
+    ) {
+        VpnStats.recordQuery()
         val verdict = blocklist.lookup(query.qName)
         if (verdict !is MatchResult.Allowed) {
             val category = verdict.category ?: return
             val response = DnsPacketParser.buildNxdomainResponse(query)
-            val reply = IpPacketParser.buildIpv4UdpReply(ip, udp, response)
-            if (writer.enqueue(reply)) {
+            if (writer.enqueue(buildReply(response))) {
                 VpnStats.recordBlock(query.qName, category)
             } else {
                 VpnStats.recordError()
@@ -220,19 +278,18 @@ class SentinelVpnService : VpnService() {
         val cached = dnsCache.get(DnsAnswerCache.Key(query.qName, query.qType))
         if (cached != null) {
             val restamped = DnsPacketParser.rewriteTransactionId(cached, query.transactionId)
-            val reply = IpPacketParser.buildIpv4UdpReply(ip, udp, restamped)
             // A cache hit is an allowed query served without an upstream
             // round-trip; counted as "forwarded" (i.e. successfully served)
             // for the dashboard, consistent with VpnStats.warmFromDb's
             // queries = forwarded + blocked partition.
-            if (writer.enqueue(reply)) {
+            if (writer.enqueue(buildReply(restamped))) {
                 VpnStats.recordForwarded()
             } else {
                 VpnStats.recordError()
             }
             return
         }
-        dnsForwarder?.forward(query, ip, udp, dnsPayload)
+        dnsForwarder?.forward(query, dnsPayload, isIpv6, buildReply)
     }
 
     private fun passthrough(writer: TunWriter, rawBuffer: ByteArray, length: Int) {
@@ -351,6 +408,10 @@ class SentinelVpnService : VpnService() {
         private const val SESSION_NAME = "Sentinel"
         private const val LOCAL_TUN_ADDRESS = "10.0.0.2"
         private const val SINKHOLE_DNS = "10.0.0.1"
+        // Unique-local (fd00::/8) addresses for the IPv6 sinkhole. Only the
+        // /128 sinkhole is routed, mirroring the IPv4 DNS-only pattern.
+        private const val LOCAL_TUN_ADDRESS6 = "fd00:5e71:1::2"
+        private const val SINKHOLE_DNS6 = "fd00:5e71:1::1"
         private const val DNS_PORT = 53
         private const val NOTIFICATION_INTERVAL_MS = 2_000L
         private const val NOTIFICATION_ID = 9301

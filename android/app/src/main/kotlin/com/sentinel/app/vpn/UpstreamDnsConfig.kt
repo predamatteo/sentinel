@@ -20,6 +20,10 @@ object UpstreamDnsConfig {
         val primary: String,
         val secondary: String,
         val dotHostname: String,
+        // IPv6 upstreams for forwarding AAAA / IPv6-originated DNS queries.
+        // Not yet wired to Remote Config; default to Cloudflare IPv6.
+        val primaryV6: String = "2606:4700:4700::1111",
+        val secondaryV6: String = "2606:4700:4700::1001",
     )
 
     private val state = AtomicReference(
@@ -36,6 +40,7 @@ object UpstreamDnsConfig {
         val cleanedPrimary = primary.trim().ifBlank { "1.1.1.1" }
         val cleanedSecondary = secondary.trim().ifBlank { cleanedPrimary }
         val cleanedDot = dotHostname.trim().ifBlank { "cloudflare-dns.com" }
+        // IPv6 upstreams keep their defaults (not configurable yet).
         state.set(Snapshot(cleanedPrimary, cleanedSecondary, cleanedDot))
     }
 }

@@ -17,7 +17,9 @@ import java.nio.ByteOrder
 internal object IpPacketParser {
 
     private const val IPV4_VERSION: Int = 4
+    private const val IPV6_VERSION: Int = 6
     private const val MIN_HEADER_LENGTH: Int = 20
+    const val IPV6_HEADER_LENGTH: Int = 40
     const val PROTOCOL_UDP: Int = 17
 
     /**
@@ -126,6 +128,111 @@ internal object IpPacketParser {
         return out
     }
 
+    /**
+     * Parse a fixed 40-byte IPv6 header from [buffer]. On success the
+     * buffer position is left at the start of the IPv6 payload (the upper-
+     * layer header). For the MVP we do NOT walk extension headers: callers
+     * check [Ipv6Header.nextHeader] == [PROTOCOL_UDP] and pass anything
+     * else through untouched.
+     *
+     * @return [Ipv6Header] on success, null on any structural problem.
+     */
+    fun parseIpv6(buffer: ByteBuffer): Ipv6Header? {
+        if (buffer.remaining() < IPV6_HEADER_LENGTH) return null
+        val start = buffer.position()
+        val version = (buffer.get(start).toInt() and 0xFF) ushr 4
+        if (version != IPV6_VERSION) return null
+        val payloadLength = readUShort(buffer, start + 4)
+        val nextHeader = buffer.get(start + 6).toInt() and 0xFF
+        val sourceIp = ByteArray(16).also { buffer.duplicate().apply { position(start + 8) }.get(it) }
+        val destIp = ByteArray(16).also { buffer.duplicate().apply { position(start + 24) }.get(it) }
+        buffer.position(start + IPV6_HEADER_LENGTH)
+        return Ipv6Header(
+            headerStart = start,
+            payloadLength = payloadLength,
+            nextHeader = nextHeader,
+            sourceIp = sourceIp,
+            destIp = destIp,
+        )
+    }
+
+    /**
+     * Build a fully formed IPv6 + UDP packet that swaps the addresses and
+     * ports of [original]/[originalUdp] and carries [payload] as its UDP
+     * body. Unlike IPv4, the IPv6 UDP checksum is MANDATORY (RFC 8200) and
+     * is computed over the IPv6 pseudo-header; a zero checksum would be
+     * dropped by the kernel, silently breaking IPv6 DNS.
+     */
+    fun buildIpv6UdpReply(
+        original: Ipv6Header,
+        originalUdp: UdpHeader,
+        payload: ByteArray,
+    ): ByteArray {
+        val udpLength = 8 + payload.size
+        val total = IPV6_HEADER_LENGTH + udpLength
+        val out = ByteArray(total)
+
+        // IPv6 header
+        out[0] = 0x60.toByte() // version 6, traffic class 0
+        // bytes 1-3 (flow label) stay zero
+        out[4] = (udpLength ushr 8).toByte() // payload length = UDP length
+        out[5] = udpLength.toByte()
+        out[6] = PROTOCOL_UDP.toByte() // next header
+        out[7] = 64 // hop limit
+        // Swap: reply source = original destination (the sinkhole), reply
+        // destination = original source (the client).
+        System.arraycopy(original.destIp, 0, out, 8, 16)
+        System.arraycopy(original.sourceIp, 0, out, 24, 16)
+
+        // UDP header
+        val udpStart = IPV6_HEADER_LENGTH
+        out[udpStart] = (originalUdp.destPort ushr 8).toByte()
+        out[udpStart + 1] = originalUdp.destPort.toByte()
+        out[udpStart + 2] = (originalUdp.sourcePort ushr 8).toByte()
+        out[udpStart + 3] = originalUdp.sourcePort.toByte()
+        out[udpStart + 4] = (udpLength ushr 8).toByte()
+        out[udpStart + 5] = udpLength.toByte()
+        // checksum bytes 6-7 left zero while we compute it
+
+        System.arraycopy(payload, 0, out, udpStart + 8, payload.size)
+
+        val checksum = ipv6UdpChecksum(out, udpStart, udpLength)
+        out[udpStart + 6] = (checksum ushr 8).toByte()
+        out[udpStart + 7] = checksum.toByte()
+        return out
+    }
+
+    private fun ipv6UdpChecksum(packet: ByteArray, udpStart: Int, udpLength: Int): Int {
+        var sum = 0L
+        // Pseudo-header: src (16) + dst (16), already laid out at offsets 8..39.
+        var i = 8
+        while (i < 40) {
+            sum += (((packet[i].toInt() and 0xFF) shl 8) or (packet[i + 1].toInt() and 0xFF)).toLong()
+            i += 2
+        }
+        // Upper-layer packet length (32-bit) + next header (3 zero bytes + proto).
+        sum += (udpLength ushr 16).toLong() and 0xFFFF
+        sum += udpLength.toLong() and 0xFFFF
+        sum += PROTOCOL_UDP.toLong()
+        // UDP header + payload.
+        var j = udpStart
+        val end = udpStart + udpLength
+        while (j + 1 < end) {
+            sum += (((packet[j].toInt() and 0xFF) shl 8) or (packet[j + 1].toInt() and 0xFF)).toLong()
+            j += 2
+        }
+        if (j < end) {
+            sum += ((packet[j].toInt() and 0xFF) shl 8).toLong()
+        }
+        while ((sum shr 16) != 0L) {
+            sum = (sum and 0xFFFF) + (sum shr 16)
+        }
+        val result = (sum.inv() and 0xFFFF).toInt()
+        // RFC 768/8200: a computed zero is transmitted as 0xFFFF; on IPv6 a
+        // literal zero checksum is illegal, so this substitution is required.
+        return if (result == 0) 0xFFFF else result
+    }
+
     private fun readUShort(buffer: ByteBuffer, index: Int): Int {
         val hi = buffer.get(index).toInt() and 0xFF
         val lo = buffer.get(index + 1).toInt() and 0xFF
@@ -195,6 +302,18 @@ internal data class Ipv4Header(
     val destIp: ByteArray,
 ) {
     // Avoid generated equals/hashCode warnings about ByteArray.
+    override fun equals(other: Any?): Boolean = this === other
+    override fun hashCode(): Int = System.identityHashCode(this)
+}
+
+/** Parsed IPv6 header (only the fields needed downstream). */
+internal data class Ipv6Header(
+    val headerStart: Int,
+    val payloadLength: Int,
+    val nextHeader: Int,
+    val sourceIp: ByteArray,
+    val destIp: ByteArray,
+) {
     override fun equals(other: Any?): Boolean = this === other
     override fun hashCode(): Int = System.identityHashCode(this)
 }

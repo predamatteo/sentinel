@@ -57,10 +57,13 @@ internal class DnsForwarder(
     private data class PendingQuery(
         val allocatedId: Int,
         val originalTxid: Int,
-        val ip: Ipv4Header,
-        val udp: UdpHeader,
+        val isIpv6: Boolean,
         val qName: String,
         val qType: Int,
+        // Wraps a (re-stamped) DNS answer payload into a full IPv4 or IPv6
+        // UDP datagram for the requesting client. Captures the parsed
+        // headers, keeping the forwarder agnostic to address family.
+        val buildReply: (ByteArray) -> ByteArray,
     )
 
     /**
@@ -87,8 +90,13 @@ internal class DnsForwarder(
      * Register [query] and dispatch a non-blocking upstream send. Returns
      * immediately; the read loop is never blocked on the network.
      */
-    fun forward(query: DnsQuery, ip: Ipv4Header, udp: UdpHeader, dnsPayload: ByteArray) {
-        val allocatedId = registerPending(query, ip, udp)
+    fun forward(
+        query: DnsQuery,
+        dnsPayload: ByteArray,
+        isIpv6: Boolean,
+        buildReply: (ByteArray) -> ByteArray,
+    ) {
+        val allocatedId = registerPending(query, isIpv6, buildReply)
         if (allocatedId < 0) {
             // Correlation table saturated (pathological in-flight count);
             // fail this query rather than risk delivering a reply to the
@@ -97,7 +105,7 @@ internal class DnsForwarder(
             return
         }
         val outPayload = DnsPacketParser.rewriteTransactionId(dnsPayload, allocatedId)
-        scope.launch { sendAttempt(allocatedId, outPayload, attempt = 1) }
+        scope.launch { sendAttempt(allocatedId, outPayload, attempt = 1, isIpv6 = isIpv6) }
     }
 
     /**
@@ -107,27 +115,38 @@ internal class DnsForwarder(
      * thousands of simultaneous in-flight queries). The collision check is
      * what makes correlation unambiguous even under id wraparound.
      */
-    private fun registerPending(query: DnsQuery, ip: Ipv4Header, udp: UdpHeader): Int {
+    private fun registerPending(
+        query: DnsQuery,
+        isIpv6: Boolean,
+        buildReply: (ByteArray) -> ByteArray,
+    ): Int {
         repeat(MAX_ALLOC_ATTEMPTS) {
             val id = nextId()
             val pq = PendingQuery(
                 allocatedId = id,
                 originalTxid = query.transactionId,
-                ip = ip,
-                udp = udp,
+                isIpv6 = isIpv6,
                 qName = query.qName,
                 qType = query.qType,
+                buildReply = buildReply,
             )
             if (pending.putIfAbsent(id, pq) == null) return id
         }
         return -1
     }
 
-    private suspend fun sendAttempt(allocatedId: Int, payload: ByteArray, attempt: Int) {
+    private suspend fun sendAttempt(
+        allocatedId: Int,
+        payload: ByteArray,
+        attempt: Int,
+        isIpv6: Boolean,
+    ) {
         val upstream = UpstreamDnsConfig.current()
+        val primary = if (isIpv6) upstream.primaryV6 else upstream.primary
+        val secondary = if (isIpv6) upstream.secondaryV6 else upstream.secondary
         val server = when (attempt) {
-            1 -> upstream.primary
-            else -> upstream.secondary.ifBlank { upstream.primary }
+            1 -> primary
+            else -> secondary.ifBlank { primary }
         }
         try {
             val addr = InetAddress.getByName(server)
@@ -142,9 +161,9 @@ internal class DnsForwarder(
         delay(perAttemptTimeoutMs)
         // If the reply already arrived, the entry is gone and we stop.
         if (!pending.containsKey(allocatedId)) return
-        val hasSecondary = upstream.secondary.isNotBlank() && upstream.secondary != upstream.primary
+        val hasSecondary = secondary.isNotBlank() && secondary != primary
         if (attempt == 1 && hasSecondary) {
-            sendAttempt(allocatedId, payload, attempt = 2)
+            sendAttempt(allocatedId, payload, attempt = 2, isIpv6 = isIpv6)
         } else if (pending.remove(allocatedId) != null) {
             VpnStats.recordError()
         }
@@ -170,7 +189,7 @@ internal class DnsForwarder(
             // IPv4/UDP datagram whose addresses are swapped so the client
             // sees it coming from the sinkhole DNS server.
             val restamped = DnsPacketParser.rewriteTransactionId(replyPayload, pq.originalTxid)
-            val reply = IpPacketParser.buildIpv4UdpReply(pq.ip, pq.udp, restamped)
+            val reply = pq.buildReply(restamped)
             // Count the outcome exactly once: a dropped enqueue is an error,
             // not a forward (and must not be counted as both).
             if (tunWriter.enqueue(reply)) {
