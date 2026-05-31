@@ -215,4 +215,38 @@ class BlocklistMatchTest {
             partner is MatchResult.BlockedByAds,
         )
     }
+
+    @Test
+    fun connectFacebookNetWhitelistedForWebLogin() {
+        // Mirrors the runtime defaultWhitelist merge: connect.facebook.net
+        // (the Facebook JS SDK host) is allowed so web "Login with Facebook"
+        // works even if a public list includes it.
+        val whitelist = setOf("connect.facebook.net")
+        val result = BlocklistRepository.classify(
+            "connect.facebook.net",
+            emptySet(),
+            setOf("connect.facebook.net"),
+            whitelist,
+        )
+        assertTrue(result is MatchResult.Allowed)
+    }
+
+    @Test
+    fun adjustRedirectorAllowedWhileApexStaysBlocked() {
+        // app.adjust.com (click / deep-link redirector) is whitelisted, while
+        // the adjust.com apex and other adjust subdomains stay blocked via
+        // the parent-label climb — the apex-asymmetry pattern.
+        val whitelist = setOf("app.adjust.com")
+        val ads = setOf("adjust.com")
+        assertTrue(
+            "redirector must be allowed",
+            BlocklistRepository.classify("app.adjust.com", emptySet(), ads, whitelist)
+                is MatchResult.Allowed,
+        )
+        assertTrue(
+            "other adjust subdomains stay blocked via the apex",
+            BlocklistRepository.classify("s2s.adjust.com", emptySet(), ads, whitelist)
+                is MatchResult.BlockedByAds,
+        )
+    }
 }

@@ -204,15 +204,27 @@ SentinelVpnService -> VpnStats.recordForwarded
 ### Key design decisions
 
 #### DNS-only tunnel
-The service claims `0.0.0.0/0` so the kernel hands us every IPv4 packet,
-but only UDP/53 is parsed. Other packets are echoed back to the tun fd
-unchanged. This keeps user-space free of any TCP state machine while
-still letting the OS treat us as the system DNS endpoint.
+The service routes ONLY the sinkhole DNS IPs (`10.0.0.1/32` and the ULA
+`fd00:5e71:1::1/128`) and advertises them as the DNS servers, so the OS
+sends every DNS query to us while all other traffic uses the system
+default network. Only UDP/53 is parsed; any other packet that reaches the
+tun is echoed back unchanged. This is the standard "DNS-only VPN" pattern
+(Blokada/DNS66/AdGuard) and keeps user-space free of a TCP state machine.
+(Earlier drafts described this as a `0.0.0.0/0` catch-all — that was never
+the implementation.)
+
+Known bypasses / honest limits: encrypted DNS (system Private DNS over
+DoT/853, or in-app DoH/443 like Chrome Secure DNS) is not on UDP/53 and is
+not intercepted; an app with its own hardcoded resolver other than the
+advertised sinkhole escapes (only the advertised DNS server's traffic is
+routed to us); tethered clients are unprotected; strict Private DNS can
+conflict with the advertised resolver.
 
 #### Protected upstream socket
 The Datagram socket forwarding non-blocked queries is `protect()`ed so
-its packets bypass our own tunnel. Without this we would loop forever
-(the 1.1.1.1 destination is matched by our catch-all route).
+its packets bypass our own tunnel. Without this an upstream reply to the
+sinkhole-advertised resolver could re-enter the tun and loop. A single
+persistent protected socket is reused for all queries (see DnsForwarder).
 
 #### Worst-checksum-paranoia
 We compute both the IP-header checksum and the full UDP pseudo-header

@@ -52,6 +52,7 @@ class BlocklistRepository(
     // these by clearing their personal list.
     private val defaultWhitelist: Set<String> = setOf(
         "graph.facebook.com",        // Facebook Login API (used by thousands of apps)
+        "connect.facebook.net",      // Facebook JS SDK — web "Login with Facebook"
         "api.whatsapp.com",
         "web.whatsapp.com",
         "accounts.google.com",       // Google Sign-In
@@ -67,6 +68,10 @@ class BlocklistRepository(
         // ad.doubleclick.net, ...) remain blocked via ads.txt.
         "googleadservices.com",
         "www.googleadservices.com",
+        // Adjust click/deep-link redirector: whitelisting the redirect
+        // subdomain lets the parent-label climb allow it while the
+        // adjust.com apex (pure measurement) stays blocked in ads.txt.
+        "app.adjust.com",
     )
 
     // Precomputed union of defaultWhitelist + the current user whitelist,

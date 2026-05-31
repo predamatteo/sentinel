@@ -34,14 +34,20 @@ stats.g.doubleclick.net
 # Login and basic SDK operations. Blocking it breaks legitimate
 # functionality. It is also defensively kept in defaultWhitelist in
 # BlocklistRepository.kt as a second layer.
-connect.facebook.net
+# connect.facebook.net is also intentionally NOT blocked: it serves the
+# Facebook JavaScript SDK (sdk.js) that powers "Login with Facebook" and
+# social widgets on websites; blocking it breaks web Facebook login. It is
+# pinned in defaultWhitelist as a second layer. The tracking subdomains
+# below stay blocked.
 pixel.facebook.com
 an.facebook.com
 
 # === Amazon ads ===
 amazon-adsystem.com
 aax.amazon-adsystem.com
-amzn.to
+# amzn.to intentionally NOT blocked: it is Amazon's official URL shortener
+# (Bitly-hosted) that resolves to real product pages shared in chats and
+# email. Sinkholing it returns NXDOMAIN and breaks those legitimate links.
 
 # === Microsoft ===
 ads.microsoft.com
@@ -118,7 +124,12 @@ plista.com
 
 # === Mobile-attribution / SDK trackers ===
 adjust.com
-app.adjust.com
+# app.adjust.com intentionally NOT blocked: it is Adjust's default click /
+# deep-link redirector that forwards users to real destinations; blocking
+# it breaks wrapped/shared links. It is whitelisted in defaultWhitelist so
+# the adjust.com apex above (pure measurement) stays blocked while the
+# redirector still resolves (the parent-label climb finds the whitelist
+# entry for the subdomain first).
 branch.io
 api.branch.io
 kochava.com
@@ -131,13 +142,19 @@ addthis.com
 adsymptotic.com
 disqus.com
 disquscdn.com
-gravatar.com
+# gravatar.com intentionally NOT blocked: it is an avatar/image host
+# (Automattic/WordPress) used across blogs, forums and developer tools;
+# blocking it only yields broken profile-image placeholders, not ads.
 keen.io
 loggly.com
 mailtrack.io
 pendo.io
-tag.usercentrics.eu
-usercentrics.eu
+# usercentrics.eu / tag.usercentrics.eu intentionally NOT blocked: it is a
+# Google-certified Consent Management Platform (the GDPR cookie banner). In
+# its common "block until consent" mode, sinkholing the CMP host leaves EU
+# pages stuck behind a never-loading consent wall (blank/unusable page).
+# Removing the apex too is required: the parent-label climb would otherwise
+# re-block every usercentrics.eu subdomain.
 
 # === Mobile-app tracking pixel hosts ===
 ad-mob.com
