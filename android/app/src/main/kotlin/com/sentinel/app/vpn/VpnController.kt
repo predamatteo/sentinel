@@ -103,6 +103,47 @@ class VpnController(
     }
 
     /**
+     * Best-effort snapshot of network-environment conditions that can
+     * bypass or conflict with DNS filtering (encrypted DNS / strict Private
+     * DNS), so the dashboard can warn instead of showing a clean state.
+     */
+    fun environmentStatus(): Map<String, Any?> {
+        val status = NetworkEnvironmentDetector.inspect(context)
+        return mapOf(
+            "privateDnsMode" to status.privateDnsMode.name.lowercase(),
+            "privateDnsHostname" to status.privateDnsHostname,
+            "encryptedDnsActive" to status.encryptedDnsActive,
+            "apiLevelSupported" to status.apiLevelSupported,
+        )
+    }
+
+    /**
+     * Open the system Private DNS settings so the user can switch a
+     * conflicting strict provider to Automatic/Off. The dedicated action
+     * exists from API 29; fall back to wireless then top-level settings.
+     */
+    fun openPrivateDnsSettings() {
+        val candidates = listOf(
+            // Settings.ACTION_PRIVATE_DNS_SETTINGS (API 29+) by literal so we
+            // need no @RequiresApi; harmless on older versions (falls through).
+            Intent("android.settings.PRIVATE_DNS_SETTINGS"),
+            Intent(Settings.ACTION_WIRELESS_SETTINGS),
+            Intent(Settings.ACTION_SETTINGS),
+        )
+        for (intent in candidates) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                context.startActivity(intent)
+                return
+            } catch (_: ActivityNotFoundException) {
+                // Not present on this OEM/version; try the next candidate.
+            } catch (_: Exception) {
+                // Some OEMs throw SecurityException; fall through.
+            }
+        }
+    }
+
+    /**
      * Build a combined snapshot of VPN and analysis counters. Used as the
      * one-shot read from the Dart side; the steady-state push path is the
      * `com.sentinel.app/stats_events` EventChannel.

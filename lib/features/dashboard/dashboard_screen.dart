@@ -47,6 +47,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool _accessibilityEnabled = false;
   bool _overlayAllowed = false;
   bool _hotspotActive = false;
+  VpnEnvironmentStatus _env = VpnEnvironmentStatus.clear;
   VpnStats _stats = VpnStats.empty;
   DateTime _lastUpdated = DateTime.now();
 
@@ -115,6 +116,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _runningPollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _refreshRunning();
       _refreshHotspot();
+      _refreshEnvironment();
     });
   }
 
@@ -125,6 +127,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       _refreshDefaultBrowser(),
       _refreshAccessibility(),
       _refreshHotspot(),
+      _refreshEnvironment(),
     ]);
   }
 
@@ -148,6 +151,12 @@ class _DashboardScreenState extends State<DashboardScreen>
     final active = await widget.vpnService.isHotspotActive();
     if (!mounted || active == _hotspotActive) return;
     setState(() => _hotspotActive = active);
+  }
+
+  Future<void> _refreshEnvironment() async {
+    final env = await widget.vpnService.getEnvironmentStatus();
+    if (!mounted) return;
+    setState(() => _env = env);
   }
 
   Future<void> _refreshStatsOnce() async {
@@ -264,6 +273,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     await widget.vpnService.openHotspotSettings();
   }
 
+  Future<void> _openPrivateDnsSettings() async {
+    await widget.vpnService.openPrivateDnsSettings();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -304,6 +317,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                   padding: const EdgeInsets.only(bottom: 16),
                   child: _HotspotAdvisoryCard(
                     onOpenSettings: _openHotspotSettings,
+                  ),
+                ),
+              // Encrypted DNS (Private DNS / browser Secure DNS) bypasses our
+              // UDP/53 filter; strict Private DNS can also break resolution.
+              // Only nag while the VPN is on.
+              if (_vpnRunning && _env.encryptedDnsActive)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: _DnsEnvironmentAdvisoryCard(
+                    strict: _env.strictPrivateDns,
+                    onOpenSettings: _openPrivateDnsSettings,
                   ),
                 ),
               if (_isDefaultBrowser == false)
@@ -824,6 +848,73 @@ class _HotspotAdvisoryCard extends StatelessWidget {
                 child: Text(l10n.dashboardHotspotWarningCta),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Advisory shown when the device uses encrypted DNS (system Private DNS or
+/// a browser's Secure DNS), which bypasses Sentinel's UDP/53 filter. In
+/// strict Private DNS mode it can also break resolution, so we show a
+/// stronger, actionable variant with a shortcut to the Private DNS settings.
+class _DnsEnvironmentAdvisoryCard extends StatelessWidget {
+  const _DnsEnvironmentAdvisoryCard({
+    required this.strict,
+    required this.onOpenSettings,
+  });
+
+  final bool strict;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final fg = theme.colorScheme.onTertiaryContainer;
+    return Card(
+      color: theme.colorScheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(strict ? Icons.dns_outlined : Icons.lock_outline, color: fg),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    strict
+                        ? l10n.dashboardStrictPrivateDnsTitle
+                        : l10n.dashboardEncryptedDnsTitle,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: fg,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              strict
+                  ? l10n.dashboardStrictPrivateDnsBody
+                  : l10n.dashboardEncryptedDnsBody,
+              style: theme.textTheme.bodyMedium?.copyWith(color: fg),
+            ),
+            if (strict) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: onOpenSettings,
+                  style: TextButton.styleFrom(foregroundColor: fg),
+                  child: Text(l10n.dashboardStrictPrivateDnsCta),
+                ),
+              ),
+            ],
           ],
         ),
       ),

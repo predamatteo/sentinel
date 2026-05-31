@@ -128,6 +128,59 @@ class VpnBlockEvent {
 /// Outcome of a `start` attempt as returned by the platform channel.
 enum VpnStartOutcome { ready, consentRequired, consentDenied, error }
 
+/// System Private DNS mode, mirrored from the Kotlin
+/// `NetworkEnvironmentDetector.PrivateDnsMode`.
+enum PrivateDnsMode { off, opportunistic, strict, unknown }
+
+/// Snapshot of network-environment conditions that can bypass or conflict
+/// with Sentinel's UDP/53 filtering (encrypted DNS / strict Private DNS).
+class VpnEnvironmentStatus {
+  const VpnEnvironmentStatus({
+    required this.privateDnsMode,
+    required this.encryptedDnsActive,
+    required this.apiLevelSupported,
+    this.privateDnsHostname,
+  });
+
+  final PrivateDnsMode privateDnsMode;
+  final bool encryptedDnsActive;
+  final bool apiLevelSupported;
+  final String? privateDnsHostname;
+
+  /// Strict Private DNS (a specific hostname) can break resolution while
+  /// Sentinel is on; the dashboard surfaces a stronger, actionable warning.
+  bool get strictPrivateDns => privateDnsMode == PrivateDnsMode.strict;
+
+  static const VpnEnvironmentStatus clear = VpnEnvironmentStatus(
+    privateDnsMode: PrivateDnsMode.off,
+    encryptedDnsActive: false,
+    apiLevelSupported: false,
+  );
+
+  factory VpnEnvironmentStatus.fromMap(Map<dynamic, dynamic> raw) {
+    final PrivateDnsMode mode;
+    switch (raw['privateDnsMode']?.toString()) {
+      case 'opportunistic':
+        mode = PrivateDnsMode.opportunistic;
+        break;
+      case 'strict':
+        mode = PrivateDnsMode.strict;
+        break;
+      case 'off':
+        mode = PrivateDnsMode.off;
+        break;
+      default:
+        mode = PrivateDnsMode.unknown;
+    }
+    return VpnEnvironmentStatus(
+      privateDnsMode: mode,
+      encryptedDnsActive: raw['encryptedDnsActive'] == true,
+      apiLevelSupported: raw['apiLevelSupported'] == true,
+      privateDnsHostname: raw['privateDnsHostname']?.toString(),
+    );
+  }
+}
+
 /// Dart-side wrapper for the `com.sentinel.app/vpn` MethodChannel plus
 /// the Sprint Quality `com.sentinel.app/stats_events` EventChannel.
 ///
@@ -234,6 +287,26 @@ class VpnService {
   /// after Sentinel has been stopped.
   Future<void> openHotspotSettings() async {
     await _channel.invokeMethod<bool>('openHotspotSettings');
+  }
+
+  /// Best-effort snapshot of encrypted-DNS / strict-Private-DNS conditions
+  /// that can bypass or conflict with filtering. Returns a clear status on
+  /// any platform error.
+  Future<VpnEnvironmentStatus> getEnvironmentStatus() async {
+    try {
+      final raw = await _channel
+          .invokeMethod<Map<dynamic, dynamic>>('getEnvironmentStatus');
+      if (raw == null) return VpnEnvironmentStatus.clear;
+      return VpnEnvironmentStatus.fromMap(raw);
+    } on PlatformException {
+      return VpnEnvironmentStatus.clear;
+    }
+  }
+
+  /// Opens the system Private DNS settings so the user can switch a
+  /// conflicting strict provider to Automatic/Off.
+  Future<void> openPrivateDnsSettings() async {
+    await _channel.invokeMethod<bool>('openPrivateDnsSettings');
   }
 
   Future<VpnStats> getStats() async {

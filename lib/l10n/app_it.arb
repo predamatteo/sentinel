@@ -195,5 +195,25 @@
   "dashboardHotspotWarningCta": "Impostazioni hotspot",
   "@dashboardHotspotWarningCta": {
     "description": "Button on the hotspot advisory banner that opens system tethering settings."
+  },
+  "dashboardEncryptedDnsTitle": "DNS cifrato attivo",
+  "@dashboardEncryptedDnsTitle": {
+    "description": "Title of the advisory shown when the device uses encrypted DNS (Private DNS or browser Secure DNS) that bypasses Sentinel's UDP/53 filter."
+  },
+  "dashboardEncryptedDnsBody": "Il dispositivo usa DNS cifrato (DNS privato o Secure DNS del browser). Sentinel non vede alcune di queste richieste, quindi alcuni siti potrebbero non essere filtrati.",
+  "@dashboardEncryptedDnsBody": {
+    "description": "Body of the encrypted-DNS advisory banner."
+  },
+  "dashboardStrictPrivateDnsTitle": "Il DNS privato può creare conflitti",
+  "@dashboardStrictPrivateDnsTitle": {
+    "description": "Title of the advisory shown when strict Private DNS (a specific provider hostname) is configured."
+  },
+  "dashboardStrictPrivateDnsBody": "Il DNS privato è impostato su un provider specifico: può aggirare Sentinel e, su alcuni dispositivi, impedire il caricamento dei siti mentre Sentinel è attivo. Se le pagine non si aprono, imposta il DNS privato su \"Automatico\" o \"Off\".",
+  "@dashboardStrictPrivateDnsBody": {
+    "description": "Body of the strict Private DNS conflict advisory banner."
+  },
+  "dashboardStrictPrivateDnsCta": "Impostazioni DNS privato",
+  "@dashboardStrictPrivateDnsCta": {
+    "description": "Button on the strict Private DNS advisory that opens the system Private DNS settings."
   }
 }

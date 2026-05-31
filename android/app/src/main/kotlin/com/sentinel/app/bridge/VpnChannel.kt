@@ -17,6 +17,8 @@ import io.flutter.plugin.common.MethodChannel
  *  - isRunning() -> Boolean
  *  - isHotspotActive() -> Boolean
  *  - openHotspotSettings() -> Boolean
+ *  - getEnvironmentStatus() -> Map<String, Any?>
+ *  - openPrivateDnsSettings() -> Boolean
  *  - getStats() -> Map<String, Any?>
  *  - setWhitelist({ domains: List<String> }) -> Boolean
  *  - refreshRemoteLists({ targets: Map<String, String> }) -> Boolean
@@ -61,6 +63,11 @@ class VpnChannel(
             "isHotspotActive" -> result.success(controller.isHotspotActive())
             "openHotspotSettings" -> {
                 controller.openHotspotSettings()
+                result.success(true)
+            }
+            "getEnvironmentStatus" -> result.success(controller.environmentStatus())
+            "openPrivateDnsSettings" -> {
+                controller.openPrivateDnsSettings()
                 result.success(true)
             }
             "getStats" -> result.success(controller.snapshotStats())
